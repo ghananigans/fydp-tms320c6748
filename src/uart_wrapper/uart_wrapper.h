@@ -8,8 +8,9 @@
 #ifndef UART_WRAPPER_H_
 #define UART_WRAPPER_H_
 
-void
-print_uart (
+int
+echo_uart (
+	void
 	);
 
 
