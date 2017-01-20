@@ -8,18 +8,25 @@
 #ifndef UART_WRAPPER_H_
 #define UART_WRAPPER_H_
 
-void
+enum UART_ERROR_CODES
+{
+	UART_OK,
+	UART_NOT_INITIALIZED,
+	UART_ALREADY_INITIALIZED
+};
+
+int
 uart_init (
 	void
 	);
 
-void
+int
 uart_print (
-	char * str,
-	unsigned int length
+	char const * format,
+	...
 	);
 
-void
+int
 uart_read (
 	char * buffer,
 	unsigned int buffer_size

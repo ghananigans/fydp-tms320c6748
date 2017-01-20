@@ -6,47 +6,6 @@
  */
 
 #include "uart_wrapper.h"
-
-/**
- * \file  uartEcho.c
- *
- * \brief This is a sample application file which invokes some APIs
- *        from the UART device abstraction library to perform configuration,
- *        transmission and reception operations.
- */
-
-/*
-* Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*    Redistributions of source code must retain the above copyright
-*    notice, this list of conditions and the following disclaimer.
-*
-*    Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in the
-*    documentation and/or other materials provided with the
-*    distribution.
-*
-*    Neither the name of Texas Instruments Incorporated nor the names of
-*    its contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-*  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-*  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-*  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-*  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-*  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
 #include "hw_psc_C6748.h"
 #include "soc_C6748.h"
 #include "interrupt.h"
@@ -57,20 +16,25 @@
 #include "../util.h"
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdbool.h>
 
 
 /****************************************************************************/
 /*                      GLOBAL VARIABLES                                    */
 /****************************************************************************/
-static char * tx_array;
-static unsigned int tx_length;
-static volatile unsigned int tx_index;
-static volatile uint8_t tx_done;
+static bool init_done = 0;
 
-static char * rx_array;
-static unsigned int rx_length;
-static volatile unsigned int rx_index;
-static volatile uint8_t rx_done;
+static char tx_array[256];
+static const unsigned int tx_length = 256;
+static volatile unsigned int tx_index = 0;
+static volatile bool tx_done = 1;
+
+static char * rx_array = 0;
+static unsigned int rx_length = 0;
+static volatile unsigned int rx_index = 0;
+static volatile bool rx_done = 1;
 
 /****************************************************************************/
 /*                      LOCAL FUNCTION PROTOTYPES                           */
@@ -105,10 +69,11 @@ uart_isr (
 	/* Checked if the cause is transmitter empty condition.*/
 	if (UART_INTID_TX_EMPTY == int_id)
 	{
-		if (tx_array && tx_index < tx_length)
+		if (tx_index < tx_length)
 		{
 			/* Write a byte into the THR if THR is free. */
 			UARTCharPutNonBlocking(SOC_UART_2_REGS, tx_array[tx_index]);
+
 			tx_index++;
 		}
 
@@ -116,7 +81,7 @@ uart_isr (
 		 * If there is no array, or we sent the last character,
 		 * disable furthur transmit interrupts.
 		 */
-		if (!tx_array || tx_index == tx_length || tx_array[tx_index] == '\0')
+		if (tx_index == tx_length || tx_array[tx_index] == '\0')
 		{
 			tx_done = 1;
 
@@ -143,7 +108,7 @@ uart_isr (
 		 * If there is no array, or there is no more space in the receiving buffer
 		 * or the last character was a newline, disable furthur read interrupts.
 		 */
-		if (!rx_array || rx_index == rx_length || (rx_array[rx_index - 1] == 13))
+		if (!rx_array || rx_index == rx_length || (rx_array[rx_index - 1] == '\r'))
 		{
 			rx_done = 1;
 
@@ -215,7 +180,7 @@ uart_configure_interrupts (
 	IntEnable(C674X_MASK_INT4);
 #else
     /* Registers the UARTIsr in the Interrupt Vector Table of AINTC. */
-    IntRegister(SYS_INT_UARTINT2, UARTIsr);
+    IntRegister(SYS_INT_UARTINT2, uart_isr);
 
     /* Map the channel number 2 of AINTC to UART2 system interrupt. */
     IntChannelSet(SYS_INT_UARTINT2, 2);
@@ -228,24 +193,21 @@ uart_configure_interrupts (
 /****************************************************************************/
 /*                      LOCAL FUNCTION DEFINITIONS                          */
 /****************************************************************************/
-void
+int
 uart_init (
 	void
 	)
 {
-	DEBUG_PRINT("Initializing UART...\n");
-
 	unsigned int intFlags = 0;
 	unsigned int config = 0;
 
-	tx_array = 0;
-	tx_length = 0;
-	tx_index = 0;
+	if (init_done)
+	{
+		DEBUG_PRINT("UART is already initialized!\n");
+		return UART_ALREADY_INITIALIZED;
+	}
 
-	rx_array = 0;
-	rx_length = 0;
-	rx_index = 0;
-	rx_done = 0;
+	DEBUG_PRINT("Initializing UART...\n");
 
 	/* Enabling the PSC for UART2.*/
 	PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_UART2, PSC_POWERDOMAIN_ALWAYS_ON,
@@ -286,41 +248,58 @@ uart_init (
 	/* Enable the Interrupts in UART.*/
 	UARTIntEnable(SOC_UART_2_REGS, intFlags);
 
-	uart_print("UART Initialized!\r\n", 19);
+	init_done = 1;
+
+	DEBUG_PRINT("UART Initialized!\n");
+
+	return UART_OK;
 }
 
-void
+int
 uart_print (
-	char * str,
-	unsigned int length
+	char const * format,
+	...
 	)
 {
-	tx_array = str;
-	tx_length = length;
+	va_list args;
+
+	if (init_done == 0)
+	{
+		return UART_NOT_INITIALIZED;
+	}
+
+	va_start(args, format);
+	vsprintf(tx_array, format, args);
+	va_end(args);
 	tx_index = 0;
 	tx_done = 0;
 
 	/* Enable the Transmitter interrupt in UART.*/
 	UARTIntEnable(SOC_UART_2_REGS, UART_INT_TX_EMPTY);
 
+	//
+	// Wait to finish sending data (blocking).
+	//
 	while (tx_done == 0);
 
-	tx_array = 0;
-	tx_length = 0;
-	tx_index = 0;
+	return UART_OK;
 }
 
-void
+int
 uart_read (
 	char * buffer,
 	unsigned int buffer_size
 	)
 {
+	if (init_done == 0)
+	{
+		return UART_NOT_INITIALIZED;
+	}
+
 	/*
 	 * Always make sure last character in buffer
 	 * is the null terminator character.
 	 */
-
 	memset(buffer, 0, buffer_size);
 	rx_length = buffer_size - 1;
 	rx_array = buffer;
@@ -330,11 +309,16 @@ uart_read (
 	/* Enable the Transmitter interrupt in UART.*/
 	UARTIntEnable(SOC_UART_2_REGS, UART_INT_RXDATA_CTI);
 
+	//
+	// Wait to finish receiving data (blocking).
+	//
 	while (rx_done == 0);
 
 	rx_array = 0;
 	rx_length = 0;
 	rx_index = 0;
+
+	return UART_OK;
 }
 
 int

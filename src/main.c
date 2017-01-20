@@ -1,6 +1,11 @@
 /*
  * main.c
  */
+
+#ifndef _TMS320C6X
+#error Macro _TMS320C6X is not defined!
+#endif
+
 #include "util.h"
 #include <stdio.h>
 #include "uart_wrapper/uart_wrapper.h"
@@ -10,24 +15,25 @@ main (
 	void
 	)
 {
-	int i, a;
+	int a;
 	char buffer[50];
-	char other_buffer[20];
+
+	/*
+	 * Init uart before everything else so debug
+	 * statements can be seen
+	 */
+	uart_init();
 
 	NORMAL_PRINT("Application Starting\n");
 	DEBUG_PRINT("Debug prints are enabled\n");
 
-	uart_init();
-
 	/*
 	 * Loop forever.
+	 * Simply read uart and output.
 	 */
-	i = 0;
-
 	while (1)
 	{
-		i++;
-		uart_print("Enter some text : ", -1);
+		uart_print("Enter some text : ");
 		uart_read(buffer, 50);
 
 		for (a = 0; a < 50; ++a)
@@ -35,7 +41,7 @@ main (
 			DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
 		}
 
-		uart_print(buffer, 50);
+		uart_print("%s\n", buffer);
 	}
 
 	return 0;
