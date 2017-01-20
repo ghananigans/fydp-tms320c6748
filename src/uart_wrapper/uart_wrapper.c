@@ -37,7 +37,7 @@ static volatile unsigned int rx_index = 0;
 static volatile bool rx_done = 1;
 
 /****************************************************************************/
-/*                      LOCAL FUNCTION PROTOTYPES                           */
+/*                      LOCAL FUNCTIONS                           */
 /****************************************************************************/
 
 /*
@@ -191,8 +191,12 @@ uart_configure_interrupts (
 
 
 /****************************************************************************/
-/*                      LOCAL FUNCTION DEFINITIONS                          */
+/*                      GLOBAL FUNCTION DEFINITIONS                         */
 /****************************************************************************/
+
+/*
+ * Initialize UART.
+ */
 int
 uart_init (
 	void
@@ -255,6 +259,16 @@ uart_init (
 	return UART_OK;
 }
 
+/*
+ * Print a formatted string to uart if uart is initialized.
+ *
+ * Use the same as printf.
+ *
+ * *** Max length of string can be 256 (including null terminator '\0).
+ *
+ * This function only returns after the full formatted string has
+ * been sent (blocking).
+ */
 int
 uart_print (
 	char const * format,
@@ -285,6 +299,14 @@ uart_print (
 	return UART_OK;
 }
 
+/*
+ * Read something from UART.
+ *
+ * This function only returns after a CR is received or
+ * bytes received equals to the buffer_size - 1. Last
+ * element in the buffer will be the null terminator
+ * character '\0'.
+ */
 int
 uart_read (
 	char * buffer,
@@ -319,13 +341,4 @@ uart_read (
 	rx_index = 0;
 
 	return UART_OK;
-}
-
-int
-echo_uart (
-	void
-	)
-{
-	uart_init();
-    while (1);
 }

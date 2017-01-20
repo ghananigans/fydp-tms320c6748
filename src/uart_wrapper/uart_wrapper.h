@@ -32,10 +32,5 @@ uart_read (
 	unsigned int buffer_size
 	);
 
-int
-echo_uart (
-	void
-	);
-
 
 #endif /* UART_WRAPPER_H_ */
