@@ -28,7 +28,7 @@ MEMORY
     EMIFACS3     o = 0x62000000  l = 0x02000000   /* 32MB Async Data (CS3) */
     EMIFACS4     o = 0x64000000  l = 0x02000000   /* 32MB Async Data (CS4) */
     EMIFACS5     o = 0x66000000  l = 0x02000000   /* 32MB Async Data (CS5) */
-    SHRAM        o = 0x80000000  l = 0x00020000   /* 128kB Shared RAM */
+    SHRAM        o = 0x80000000  l = 0x00200000   /* 128kB Shared RAM */
     DDR2         o = 0xC0000000  l = 0x20000000   /* 512MB DDR2 Data */
 }                                              
                                                
@@ -42,7 +42,7 @@ SECTIONS
     .data          >  SHRAM                    
     .switch        >  SHRAM                    
     .sysmem        >  SHRAM                    
-    .far           >  SHRAM                    
+    .far           >  DDR2
     .args          >  SHRAM                    
     .ppinfo        >  SHRAM
     .ppdata        >  SHRAM
