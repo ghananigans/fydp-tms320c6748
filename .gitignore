@@ -9,6 +9,7 @@ local.properties
 .settings/
 .loadpath
 .recommenders
+Debug/
 
 # Code Composer Studio Files
 .ccsproject
@@ -51,3 +52,7 @@ local.properties
 
 # Code Recommenders
 .recommenders/
+
+# Keep .keep
+!.keep
+
