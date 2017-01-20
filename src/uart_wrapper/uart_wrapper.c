@@ -55,76 +55,26 @@
 #include "uart.h"
 #include "psc.h"
 #include "../util.h"
+#include <string.h>
+#include <stdint.h>
 
-/****************************************************************************/
-/*                      LOCAL FUNCTION PROTOTYPES                           */
-/****************************************************************************/
-static void ConfigureIntUART(void);
-static void SetupInt(void);
-static void UARTIsr(void);
 
 /****************************************************************************/
 /*                      GLOBAL VARIABLES                                    */
 /****************************************************************************/
-char txArray[] = "Hello world\n\r";
+static char * tx_array;
+static unsigned int tx_length;
+static volatile unsigned int tx_index;
+static volatile uint8_t tx_done;
+
+static char * rx_array;
+static unsigned int rx_length;
+static volatile unsigned int rx_index;
+static volatile uint8_t rx_done;
 
 /****************************************************************************/
-/*                      LOCAL FUNCTION DEFINITIONS                          */
+/*                      LOCAL FUNCTION PROTOTYPES                           */
 /****************************************************************************/
-
-int
-echo_uart (
-	void
-	)
-{
-    unsigned int intFlags = 0;
-    unsigned int config = 0;
-
-    DEBUG_PRINT("Echo-ing UART...\n");
-
-    /* Enabling the PSC for UART2.*/
-    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_UART2, PSC_POWERDOMAIN_ALWAYS_ON,
-		     PSC_MDCTL_NEXT_ENABLE);
-
-    /* Setup PINMUX */
-    UARTPinMuxSetup(2, FALSE);
-
-    /* Enabling the transmitter and receiver*/
-    UARTEnable(SOC_UART_2_REGS);
-
-    /* 1 stopbit, 8-bit character, no parity */
-    config = UART_WORDL_8BITS;
-
-    /* Configuring the UART parameters*/
-    UARTConfigSetExpClk(SOC_UART_2_REGS, SOC_UART_2_MODULE_FREQ,
-                        BAUD_115200, config,
-                        UART_OVER_SAMP_RATE_16);
-
-    /* Enabling the FIFO and flushing the Tx and Rx FIFOs.*/
-    UARTFIFOEnable(SOC_UART_2_REGS);
-
-    /* Setting the UART Receiver Trigger Level*/
-    UARTFIFOLevelSet(SOC_UART_2_REGS, UART_RX_TRIG_LEVEL_1);
-
-    /*
-    ** Enable AINTC to handle interrupts. Also enable IRQ interrupt in ARM
-    ** processor.
-    */
-    SetupInt();
-
-    /* Configure AINTC to receive and handle UART interrupts. */
-    ConfigureIntUART();
-
-    /* Preparing the 'intFlags' variable to be passed as an argument.*/
-    intFlags |= (UART_INT_LINE_STAT  |  \
-                 UART_INT_TX_EMPTY |    \
-                 UART_INT_RXDATA_CTI);
-
-    /* Enable the Interrupts in UART.*/
-    UARTIntEnable(SOC_UART_2_REGS, intFlags);
-
-    while(1);
-}
 
 /*
 ** \brief   Interrupt Service Routine(ISR) to be executed on UART interrupts.
@@ -133,61 +83,89 @@ echo_uart (
 **          2> reads from the serial communication console, or
 **          3> reads the byte in RBR if receiver line error has occured.
 */
-
-static void UARTIsr()
+static
+void
+uart_isr (
+	void
+	)
 {
-    static unsigned int length = sizeof(txArray);
-    static unsigned int count = 0;
-    unsigned char rxData = 0;
-    unsigned int int_id = 0;
+	unsigned int int_id = 0;
 
-    /* This determines the cause of UART2 interrupt.*/
-    int_id = UARTIntStatus(SOC_UART_2_REGS);
+	/* This determines the cause of UART2 interrupt.*/
+	int_id = UARTIntStatus(SOC_UART_2_REGS);
 
 #ifdef _TMS320C6X
-    // Clear UART2 system interrupt in DSPINTC
-    IntEventClear(SYS_INT_UART2_INT);
+	// Clear UART2 system interrupt in DSPINTC
+	IntEventClear(SYS_INT_UART2_INT);
 #else
-    /* Clears the system interupt status of UART2 in AINTC. */
-    IntSystemStatusClear(SYS_INT_UARTINT2);
+	/* Clears the system interupt status of UART2 in AINTC. */
+	IntSystemStatusClear(SYS_INT_UARTINT2);
 #endif
 
-    /* Checked if the cause is transmitter empty condition.*/
-    if(UART_INTID_TX_EMPTY == int_id)
-    {
-        if(0 < length)
-        {
-            /* Write a byte into the THR if THR is free. */
-            UARTCharPutNonBlocking(SOC_UART_2_REGS, txArray[count]);
-            length--;
-            count++;
-        }
-        if(0 == length)
-        {
-            /* Disable the Transmitter interrupt in UART.*/
-            UARTIntDisable(SOC_UART_2_REGS, UART_INT_TX_EMPTY);
-        }
-     }
+	/* Checked if the cause is transmitter empty condition.*/
+	if (UART_INTID_TX_EMPTY == int_id)
+	{
+		if (tx_array && tx_index < tx_length)
+		{
+			/* Write a byte into the THR if THR is free. */
+			UARTCharPutNonBlocking(SOC_UART_2_REGS, tx_array[tx_index]);
+			tx_index++;
+		}
 
-    /* Check if the cause is receiver data condition.*/
-    if(UART_INTID_RX_DATA == int_id)
-    {
-        rxData = UARTCharGetNonBlocking(SOC_UART_2_REGS);
-        UARTCharPutNonBlocking(SOC_UART_2_REGS, rxData);
-    }
+		/*
+		 * If there is no array, or we sent the last character,
+		 * disable furthur transmit interrupts.
+		 */
+		if (!tx_array || tx_index == tx_length || tx_array[tx_index] == '\0')
+		{
+			tx_done = 1;
+
+			/* Disable the Transmitter interrupt in UART.*/
+			UARTIntDisable(SOC_UART_2_REGS, UART_INT_TX_EMPTY);
+		}
+	 }
+
+	/*
+	 * Check if the cause is receiver data condition.
+	 * If it is, return what was sent so it is visible
+	 * on the UART terminal.
+	 */
+	if (UART_INTID_RX_DATA == int_id)
+	{
+		if (rx_array && rx_index < rx_length)
+		{
+			/* Store a bite into the receiver buffer */
+			rx_array[rx_index] = UARTCharGetNonBlocking(SOC_UART_2_REGS);
+			rx_index++;
+		}
+
+		/*
+		 * If there is no array, or there is no more space in the receiving buffer
+		 * or the last character was a newline, disable furthur read interrupts.
+		 */
+		if (!rx_array || rx_index == rx_length || (rx_array[rx_index - 1] == 13))
+		{
+			rx_done = 1;
+
+			/* Disable the Transmitter interrupt in UART.*/
+			UARTIntDisable(SOC_UART_2_REGS, UART_INT_RXDATA_CTI);
+		}
+
+		UARTCharPutNonBlocking(SOC_UART_2_REGS, rx_array[rx_index - 1]);
+	}
 
 
-    /* Check if the cause is receiver line error condition.*/
-    if(UART_INTID_RX_LINE_STAT == int_id)
-    {
-        while(UARTRxErrorGet(SOC_UART_2_REGS))
-        {
-            /* Read a byte from the RBR if RBR has data.*/
-            UARTCharGetNonBlocking(SOC_UART_2_REGS);
-        }
-    }
+	/* Check if the cause is receiver line error condition.*/
+	if (UART_INTID_RX_LINE_STAT == int_id)
+	{
+		while (UARTRxErrorGet(SOC_UART_2_REGS))
+		{
+			/* Read a byte from the RBR if RBR has data.*/
+			UARTCharGetNonBlocking(SOC_UART_2_REGS);
+		}
+	}
 
-    return;
+	return;
 }
 
 /*
@@ -195,9 +173,11 @@ static void UARTIsr()
 **          processor and ARM Interrupt Controller(AINTC) to receive and
 **          handle interrupts.
 */
-
-
-static void SetupInt(void)
+static
+void
+setup_interrupts (
+	void
+	)
 {
 #ifdef _TMS320C6X
 	// Initialize the DSP INTC
@@ -223,10 +203,14 @@ static void SetupInt(void)
 /*
 ** \brief  This function confiugres the AINTC to receive UART interrupts.
 */
-static void ConfigureIntUART(void)
+static
+void
+uart_configure_interrupts (
+	void
+	)
 {
 #ifdef _TMS320C6X
-	IntRegister(C674X_MASK_INT4, UARTIsr);
+	IntRegister(C674X_MASK_INT4, uart_isr);
 	IntEventMap(C674X_MASK_INT4, SYS_INT_UART2_INT);
 	IntEnable(C674X_MASK_INT4);
 #else
@@ -240,6 +224,124 @@ static void ConfigureIntUART(void)
 #endif
 }
 
-/****************************END OF FILE*************************************/
 
+/****************************************************************************/
+/*                      LOCAL FUNCTION DEFINITIONS                          */
+/****************************************************************************/
+void
+uart_init (
+	void
+	)
+{
+	DEBUG_PRINT("Initializing UART...\n");
 
+	unsigned int intFlags = 0;
+	unsigned int config = 0;
+
+	tx_array = 0;
+	tx_length = 0;
+	tx_index = 0;
+
+	rx_array = 0;
+	rx_length = 0;
+	rx_index = 0;
+	rx_done = 0;
+
+	/* Enabling the PSC for UART2.*/
+	PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_UART2, PSC_POWERDOMAIN_ALWAYS_ON,
+			 PSC_MDCTL_NEXT_ENABLE);
+
+	/* Setup PINMUX */
+	UARTPinMuxSetup(2, FALSE);
+
+	/* Enabling the transmitter and receiver*/
+	UARTEnable(SOC_UART_2_REGS);
+
+	/* 1 stopbit, 8-bit character, no parity */
+	config = UART_WORDL_8BITS;
+
+	/* Configuring the UART parameters*/
+	UARTConfigSetExpClk(SOC_UART_2_REGS, SOC_UART_2_MODULE_FREQ,
+						BAUD_115200, config,
+						UART_OVER_SAMP_RATE_16);
+
+	/* Enabling the FIFO and flushing the Tx and Rx FIFOs.*/
+	UARTFIFOEnable(SOC_UART_2_REGS);
+
+	/* Setting the UART Receiver Trigger Level*/
+	UARTFIFOLevelSet(SOC_UART_2_REGS, UART_RX_TRIG_LEVEL_1);
+
+	/*
+	** Enable AINTC to handle interrupts. Also enable IRQ interrupt in ARM
+	** processor.
+	*/
+	setup_interrupts();
+
+	/* Configure AINTC to receive and handle UART interrupts. */
+	uart_configure_interrupts();
+
+	/* Preparing the 'intFlags' variable to be passed as an argument.*/
+	intFlags |= (UART_INT_LINE_STAT);
+
+	/* Enable the Interrupts in UART.*/
+	UARTIntEnable(SOC_UART_2_REGS, intFlags);
+
+	uart_print("UART Initialized!\r\n", 19);
+}
+
+void
+uart_print (
+	char * str,
+	unsigned int length
+	)
+{
+	tx_array = str;
+	tx_length = length;
+	tx_index = 0;
+	tx_done = 0;
+
+	/* Enable the Transmitter interrupt in UART.*/
+	UARTIntEnable(SOC_UART_2_REGS, UART_INT_TX_EMPTY);
+
+	while (tx_done == 0);
+
+	tx_array = 0;
+	tx_length = 0;
+	tx_index = 0;
+}
+
+void
+uart_read (
+	char * buffer,
+	unsigned int buffer_size
+	)
+{
+	/*
+	 * Always make sure last character in buffer
+	 * is the null terminator character.
+	 */
+
+	memset(buffer, 0, buffer_size);
+	rx_length = buffer_size - 1;
+	rx_array = buffer;
+	rx_index = 0;
+	rx_done = 0;
+
+	/* Enable the Transmitter interrupt in UART.*/
+	UARTIntEnable(SOC_UART_2_REGS, UART_INT_RXDATA_CTI);
+
+	while (rx_done == 0);
+
+	rx_array = 0;
+	rx_length = 0;
+	rx_index = 0;
+}
+
+int
+echo_uart (
+	void
+	)
+{
+	uart_init();
+    while (1);
+}
