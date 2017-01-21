@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include "../interrupt_wrapper/interrupt_wrapper.h"
 
 
 /****************************************************************************/
@@ -36,8 +37,9 @@ static unsigned int rx_length = 0;
 static volatile unsigned int rx_index = 0;
 static volatile bool rx_done = 1;
 
+
 /****************************************************************************/
-/*                      LOCAL FUNCTIONS                           */
+/*                      LOCAL FUNCTIONS                                     */
 /****************************************************************************/
 
 /*
@@ -134,38 +136,6 @@ uart_isr (
 }
 
 /*
-** \brief   This function invokes necessary functions to configure the ARM
-**          processor and ARM Interrupt Controller(AINTC) to receive and
-**          handle interrupts.
-*/
-static
-void
-setup_interrupts (
-	void
-	)
-{
-#ifdef _TMS320C6X
-	// Initialize the DSP INTC
-	IntDSPINTCInit();
-
-	// Enable DSP interrupts globally
-	IntGlobalEnable();
-#else
-    /* Initialize the ARM Interrupt Controller(AINTC). */
-    IntAINTCInit();
-
-    /* Enable IRQ in CPSR.*/
-    IntMasterIRQEnable();
-
-    /* Enable the interrupts in GER of AINTC.*/
-    IntGlobalEnable();
-
-    /* Enable the interrupts in HIER of AINTC.*/
-    IntIRQEnable();
-#endif
-}
-
-/*
 ** \brief  This function confiugres the AINTC to receive UART interrupts.
 */
 static
@@ -213,6 +183,12 @@ uart_init (
 
 	DEBUG_PRINT("Initializing UART...\n");
 
+	if (is_interrupt_init_done() == 0)
+	{
+		DEBUG_PRINT("Interrupts have not been initialized!\n");
+		return UART_INTERRUPTS_NOT_INITIALIZED;
+	}
+
 	/* Enabling the PSC for UART2.*/
 	PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_UART2, PSC_POWERDOMAIN_ALWAYS_ON,
 			 PSC_MDCTL_NEXT_ENABLE);
@@ -236,12 +212,6 @@ uart_init (
 
 	/* Setting the UART Receiver Trigger Level*/
 	UARTFIFOLevelSet(SOC_UART_2_REGS, UART_RX_TRIG_LEVEL_1);
-
-	/*
-	** Enable AINTC to handle interrupts. Also enable IRQ interrupt in ARM
-	** processor.
-	*/
-	setup_interrupts();
 
 	/* Configure AINTC to receive and handle UART interrupts. */
 	uart_configure_interrupts();

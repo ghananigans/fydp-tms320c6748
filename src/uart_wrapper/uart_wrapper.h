@@ -10,9 +10,10 @@
 
 enum UART_ERROR_CODES
 {
-	UART_OK,
-	UART_NOT_INITIALIZED,
-	UART_ALREADY_INITIALIZED
+	UART_OK,							// Everything is OK,
+	UART_NOT_INITIALIZED,				// UART has not been initialized,
+	UART_ALREADY_INITIALIZED,			// UART is already initialized (trying to init again),
+	UART_INTERRUPTS_NOT_INITIALIZED		// Trying to init but system interrupts have not been initialized.
 };
 
 int

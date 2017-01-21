@@ -8,7 +8,21 @@
 
 #include "util.h"
 #include <stdio.h>
+#include "interrupt_wrapper/interrupt_wrapper.h"
 #include "uart_wrapper/uart_wrapper.h"
+#include "timer_wrapper/timer_wrapper.h"
+#include <stdbool.h>
+
+static bool volatile timer_flag = 0;
+
+static inline
+void
+timer_function (
+	void
+	)
+{
+	timer_flag = 1;
+}
 
 int
 main (
@@ -16,16 +30,43 @@ main (
 	)
 {
 	int a;
+	int ret_val;
 	char buffer[50];
+
+	/*
+	 * Enable interrupts on system.
+	 */
+	ret_val = init_interrupt();
+	ASSERT(ret_val == INTERRUPT_OK, "Interrupt Init failed!\n");
 
 	/*
 	 * Init uart before everything else so debug
 	 * statements can be seen
 	 */
-	uart_init();
+	ret_val = uart_init();
+	ASSERT(ret_val == UART_OK, "UART Init failed!\n");
 
 	NORMAL_PRINT("Application Starting\n");
 	DEBUG_PRINT("Debug prints are enabled\n");
+
+	/*
+	 * Try reading uart and printing it back.
+	 */
+	uart_print("Enter some text : ");
+	uart_read(buffer, 50);
+
+	for (a = 0; a < 50; ++a)
+	{
+		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
+	}
+
+	uart_print("%s\n", buffer);
+
+	/*
+	 * Init the timer.
+	 */
+	ret_val = timer_init(&timer_function, 1000); // tick every 1000 milisecond
+	ASSERT(ret_val == TIMER_OK, "Timer Init failed!\n");
 
 	/*
 	 * Loop forever.
@@ -33,15 +74,10 @@ main (
 	 */
 	while (1)
 	{
-		uart_print("Enter some text : ");
-		uart_read(buffer, 50);
+		while (timer_flag == 0);
+		timer_flag = 0;
 
-		for (a = 0; a < 50; ++a)
-		{
-			DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
-		}
-
-		uart_print("%s\n", buffer);
+		DEBUG_PRINT("TIMER TICKED!\n");
 	}
 
 	return 0;
