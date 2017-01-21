@@ -17,7 +17,7 @@
 /*
  * Use this macro for error output.
  */
-#define ERROR_PRINT(format, ...) uart_print					\
+#define ERROR_PRINT(format, ...) uart_print(				\
 			format, ##__VA_ARGS__)
 
 /*
@@ -34,5 +34,16 @@
 #else
 #define DEBUG_PRINT(format, ...) ((void) 0)
 #endif // #ifdef DEBUG_PRINT_ENABLED
+
+#define ASSERT(result, format, ...) 						\
+	{														\
+		if ((result) == 0)									\
+		{													\
+			ERROR_PRINT("[%s:%d] ** Assertion Error: ",		\
+				__FUNCTION__, __LINE__);					\
+			ERROR_PRINT(format, ##__VA_ARGS__);				\
+			while (1);										\
+		}													\
+	}
 
 #endif /* UTIL_H_ */
