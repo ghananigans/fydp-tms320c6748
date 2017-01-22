@@ -7,8 +7,6 @@
 #endif
 
 #include "util.h"
-#include <stdio.h>
-#include "interrupt_wrapper/interrupt_wrapper.h"
 #include "uart_wrapper/uart_wrapper.h"
 #include "timer_wrapper/timer_wrapper.h"
 #include <stdbool.h>
@@ -32,12 +30,6 @@ main (
 	int a;
 	int ret_val;
 	char buffer[50];
-
-	/*
-	 * Enable interrupts on system.
-	 */
-	ret_val = init_interrupt();
-	ASSERT(ret_val == INTERRUPT_OK, "Interrupt Init failed!\n");
 
 	/*
 	 * Init uart before everything else so debug
@@ -65,7 +57,7 @@ main (
 	/*
 	 * Init the timer.
 	 */
-	ret_val = timer_init(&timer_function, 1000); // tick every 1000 milisecond
+	ret_val = timer_init(&timer_function, 1000);
 	ASSERT(ret_val == TIMER_OK, "Timer Init failed!\n");
 
 	/*

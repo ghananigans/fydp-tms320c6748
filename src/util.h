@@ -8,6 +8,8 @@
 #ifndef UTIL_H_
 #define UTIL_H_
 
+#include "uart_wrapper/uart_wrapper.h"
+
 /*
  * Use this macro for regular output.
  */
