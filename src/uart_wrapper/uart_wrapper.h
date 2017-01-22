@@ -10,28 +10,28 @@
 
 enum UART_ERROR_CODES
 {
-	UART_OK,							// Everything is OK,
-	UART_NOT_INITIALIZED,				// UART has not been initialized,
-	UART_ALREADY_INITIALIZED,			// UART is already initialized (trying to init again),
-	UART_INTERRUPTS_NOT_INITIALIZED		// Trying to init but system interrupts have not been initialized.
+    UART_OK,                            // Everything is OK,
+    UART_NOT_INITIALIZED,               // UART has not been initialized,
+    UART_ALREADY_INITIALIZED,           // UART is already initialized (trying to init again),
+    UART_INTERRUPTS_NOT_INITIALIZED     // Trying to init but system interrupts have not been initialized.
 };
 
 int
 uart_init (
-	void
-	);
+    void
+    );
 
 int
 uart_print (
-	char const * format,
-	...
-	);
+    char const * format,
+    ...
+    );
 
 int
 uart_read (
-	char * buffer,
-	unsigned int buffer_size
-	);
+    char * buffer,
+    unsigned int buffer_size
+    );
 
 
 #endif /* UART_WRAPPER_H_ */
