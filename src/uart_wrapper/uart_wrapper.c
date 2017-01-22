@@ -9,8 +9,6 @@
 #include "uart_wrapper.h"
 #include "../util.h"
 #include <string.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
 

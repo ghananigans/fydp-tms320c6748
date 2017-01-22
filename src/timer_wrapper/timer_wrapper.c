@@ -8,9 +8,7 @@
 #include "timer_wrapper.h"
 #include <stdbool.h>
 #include "../interrupt_wrapper/interrupt_wrapper.h"
-#include "../uart_wrapper/uart_wrapper.h"
 #include "../util.h"
-#include <stdio.h>
 #include "systick.h"
 
 /****************************************************************************/

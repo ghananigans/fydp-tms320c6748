@@ -7,8 +7,6 @@
 #endif
 
 #include "util.h"
-#include <stdio.h>
-#include "interrupt_wrapper/interrupt_wrapper.h"
 #include "uart_wrapper/uart_wrapper.h"
 #include "timer_wrapper/timer_wrapper.h"
 #include <stdbool.h>
