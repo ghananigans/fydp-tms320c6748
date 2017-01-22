@@ -9,21 +9,21 @@
 #define TIMER_WRAPPER_H_
 
 enum TIMER_ERROR_CODES {
-	TIMER_OK,
-	TIMER_NOT_INITIALIZED,
-	TIMER_ALREADY_INITIALIZED,
-	TIMER_FAILED_TO_INITIALIZE
+    TIMER_OK,
+    TIMER_NOT_INITIALIZED,
+    TIMER_ALREADY_INITIALIZED,
+    TIMER_FAILED_TO_INITIALIZE
 };
 
 int
 timer_init (
-	void (* func)(void),
-	unsigned int milliseconds
-	);
+    void (* func)(void),
+    unsigned int milliseconds
+    );
 
 int
 timer_destroy (
-	void
-	);
+    void
+    );
 
 #endif /* TIMER_WRAPPER_H_ */

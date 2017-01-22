@@ -30,24 +30,24 @@ static const unsigned int tx_length = 256;
  */
 int
 uart_init (
-	void
-	)
+    void
+    )
 {
-	if (init_done)
-	{
-		DEBUG_PRINT("UART is already initialized!\n");
-		return UART_ALREADY_INITIALIZED;
-	}
+    if (init_done)
+    {
+        DEBUG_PRINT("UART is already initialized!\n");
+        return UART_ALREADY_INITIALIZED;
+    }
 
-	DEBUG_PRINT("Initializing UART...\n");
+    DEBUG_PRINT("Initializing UART...\n");
 
-	UARTStdioInit();
+    UARTStdioInit();
 
-	init_done = 1;
+    init_done = 1;
 
-	DEBUG_PRINT("UART Initialized!\n");
+    DEBUG_PRINT("UART Initialized!\n");
 
-	return UART_OK;
+    return UART_OK;
 }
 
 /*
@@ -62,24 +62,24 @@ uart_init (
  */
 int
 uart_print (
-	char const * format,
-	...
-	)
+    char const * format,
+    ...
+    )
 {
-	va_list args;
+    va_list args;
 
-	if (init_done == 0)
-	{
-		return UART_NOT_INITIALIZED;
-	}
+    if (init_done == 0)
+    {
+        return UART_NOT_INITIALIZED;
+    }
 
-	va_start(args, format);
-	vsprintf(tx_array, format, args);
-	va_end(args);
+    va_start(args, format);
+    vsprintf(tx_array, format, args);
+    va_end(args);
 
-	UARTPuts(tx_array, tx_length);
+    UARTPuts(tx_array, tx_length);
 
-	return UART_OK;
+    return UART_OK;
 }
 
 /*
@@ -92,22 +92,22 @@ uart_print (
  */
 int
 uart_read (
-	char * buffer,
-	unsigned int buffer_size
-	)
+    char * buffer,
+    unsigned int buffer_size
+    )
 {
-	if (init_done == 0)
-	{
-		return UART_NOT_INITIALIZED;
-	}
+    if (init_done == 0)
+    {
+        return UART_NOT_INITIALIZED;
+    }
 
-	/*
-	 * Always make sure last character in buffer
-	 * is the null terminator character.
-	 */
-	memset(buffer, 0, buffer_size);
+    /*
+     * Always make sure last character in buffer
+     * is the null terminator character.
+     */
+    memset(buffer, 0, buffer_size);
 
-	UARTGets(buffer, buffer_size - 1);
+    UARTGets(buffer, buffer_size - 1);
 
-	return UART_OK;
+    return UART_OK;
 }

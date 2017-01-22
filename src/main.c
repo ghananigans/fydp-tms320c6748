@@ -16,61 +16,61 @@ static bool volatile timer_flag = 0;
 static inline
 void
 timer_function (
-	void
-	)
+    void
+    )
 {
-	timer_flag = 1;
+    timer_flag = 1;
 }
 
 int
 main (
-	void
-	)
+    void
+    )
 {
-	int a;
-	int ret_val;
-	char buffer[50];
+    int a;
+    int ret_val;
+    char buffer[50];
 
-	/*
-	 * Init uart before everything else so debug
-	 * statements can be seen
-	 */
-	ret_val = uart_init();
-	ASSERT(ret_val == UART_OK, "UART Init failed!\n");
+    /*
+     * Init uart before everything else so debug
+     * statements can be seen
+     */
+    ret_val = uart_init();
+    ASSERT(ret_val == UART_OK, "UART Init failed!\n");
 
-	NORMAL_PRINT("Application Starting\n");
-	DEBUG_PRINT("Debug prints are enabled\n");
+    NORMAL_PRINT("Application Starting\n");
+    DEBUG_PRINT("Debug prints are enabled\n");
 
-	/*
-	 * Try reading uart and printing it back.
-	 */
-	uart_print("Enter some text : ");
-	uart_read(buffer, 50);
+    /*
+     * Try reading uart and printing it back.
+     */
+    uart_print("Enter some text : ");
+    uart_read(buffer, 50);
 
-	for (a = 0; a < 50; ++a)
-	{
-		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
-	}
+    for (a = 0; a < 50; ++a)
+    {
+        DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
+    }
 
-	uart_print("%s\n", buffer);
+    uart_print("%s\n", buffer);
 
-	/*
-	 * Init the timer.
-	 */
-	ret_val = timer_init(&timer_function, 1000);
-	ASSERT(ret_val == TIMER_OK, "Timer Init failed!\n");
+    /*
+     * Init the timer.
+     */
+    ret_val = timer_init(&timer_function, 1000);
+    ASSERT(ret_val == TIMER_OK, "Timer Init failed!\n");
 
-	/*
-	 * Loop forever.
-	 * Simply read uart and output.
-	 */
-	while (1)
-	{
-		while (timer_flag == 0);
-		timer_flag = 0;
+    /*
+     * Loop forever.
+     * Simply read uart and output.
+     */
+    while (1)
+    {
+        while (timer_flag == 0);
+        timer_flag = 0;
 
-		DEBUG_PRINT("TIMER TICKED!\n");
-	}
+        DEBUG_PRINT("TIMER TICKED!\n");
+    }
 
-	return 0;
+    return 0;
 }

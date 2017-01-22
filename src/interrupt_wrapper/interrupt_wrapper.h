@@ -11,19 +11,19 @@
 #include <stdbool.h>
 
 enum INTERRUPT_ERROR_CODES {
-	INTERRUPT_OK,
-	INTERRUPT_NOT_INITIALIZED,
-	INTERRUPT_ALREADY_INITIALIZED
+    INTERRUPT_OK,
+    INTERRUPT_NOT_INITIALIZED,
+    INTERRUPT_ALREADY_INITIALIZED
 };
 
 int
 init_interrupt (
-	void
-	);
+    void
+    );
 
 bool
 is_interrupt_init_done (
-	void
-	);
+    void
+    );
 
 #endif /* INTERRUPT_WRAPPER_H_ */

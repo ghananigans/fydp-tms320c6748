@@ -19,23 +19,23 @@ static bool init_done = 0;
 */
 int
 init_interrupt (
-	void
-	)
+    void
+    )
 {
-	if (init_done)
-	{
-		DEBUG_PRINT("Interrupts already initialized!\n");
-		return INTERRUPT_ALREADY_INITIALIZED;
-	}
+    if (init_done)
+    {
+        DEBUG_PRINT("Interrupts already initialized!\n");
+        return INTERRUPT_ALREADY_INITIALIZED;
+    }
 
-	DEBUG_PRINT("Initializing system interrupts...\n");
+    DEBUG_PRINT("Initializing system interrupts...\n");
 
 #ifdef _TMS320C6X
-	// Initialize the DSP INTC
-	IntDSPINTCInit();
+    // Initialize the DSP INTC
+    IntDSPINTCInit();
 
-	// Enable DSP interrupts globally
-	IntGlobalEnable();
+    // Enable DSP interrupts globally
+    IntGlobalEnable();
 #else
     /* Initialize the ARM Interrupt Controller(AINTC). */
     IntAINTCInit();
@@ -58,8 +58,8 @@ init_interrupt (
 }
 
 bool is_interrupt_init_done (
-	void
-	)
+    void
+    )
 {
-	return init_done;
+    return init_done;
 }
