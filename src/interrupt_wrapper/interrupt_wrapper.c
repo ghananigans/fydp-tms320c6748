@@ -10,6 +10,7 @@
 #include "../uart_wrapper/uart_wrapper.h"
 #include <stdio.h>
 #include "../util.h"
+#include <stdbool.h>
 
 static bool init_done = 0;
 

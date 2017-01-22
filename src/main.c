@@ -34,12 +34,6 @@ main (
 	char buffer[50];
 
 	/*
-	 * Enable interrupts on system.
-	 */
-	ret_val = init_interrupt();
-	ASSERT(ret_val == INTERRUPT_OK, "Interrupt Init failed!\n");
-
-	/*
 	 * Init uart before everything else so debug
 	 * statements can be seen
 	 */
@@ -65,7 +59,7 @@ main (
 	/*
 	 * Init the timer.
 	 */
-	ret_val = timer_init(&timer_function, 1000); // tick every 1000 milisecond
+	ret_val = timer_init(&timer_function, 1000);
 	ASSERT(ret_val == TIMER_OK, "Timer Init failed!\n");
 
 	/*

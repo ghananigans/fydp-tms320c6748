@@ -6,7 +6,6 @@
  */
 
 #include "timer_wrapper.h"
-
 #include <stdbool.h>
 #include "../interrupt_wrapper/interrupt_wrapper.h"
 #include "../uart_wrapper/uart_wrapper.h"
@@ -19,34 +18,56 @@
 /****************************************************************************/
 static bool init_done = 0;
 
-/******************************************************************************
-**                          FUNCTION DEFINITIONS
-*******************************************************************************/
+/******************************************************************************/
+/*                          FUNCTION DEFINITIONS                              */
+/******************************************************************************/
 int
 timer_init (
 	void (* func)(void),
 	unsigned int milliseconds
 	)
 {
+	int ret_val;
+
 	if (init_done)
 	{
 		DEBUG_PRINT("Timer is already initialized!\n");
 		return TIMER_ALREADY_INITIALIZED;
 	}
 
-	DEBUG_PRINT("Initializing Timer...\n");
-
-	if (is_interrupt_init_done() == 0)
+	/*
+	 * Make sure global interrupt have been initialized.
+	 */
+	if (is_interrupt_init_done())
 	{
-		DEBUG_PRINT("Interrupts have not been initialized!\n");
-		return TIMER_INTERRUPTS_NOT_INITIALIZED;
+		DEBUG_PRINT("Interrupts are already initialized!\n");
 	}
+	else
+	{
+		DEBUG_PRINT("Initializing interrupts...\n");
+
+		ret_val = init_interrupt();
+		if (ret_val != INTERRUPT_OK)
+		{
+			if (ret_val == INTERRUPT_ALREADY_INITIALIZED)
+			{
+				DEBUG_PRINT("Interrupts already initialized", ret_val);
+			}
+			else
+			{
+				DEBUG_PRINT("Interrupts failed to initialize with error code %d", ret_val);
+				return TIMER_FAILED_TO_INITIALIZE;
+			}
+		}
+	}
+
+	DEBUG_PRINT("Initializing Timer...\n");
 
 	TimerTickConfigure(func);
 	TimerTickPeriodSet(milliseconds);
 	TimerTickEnable();
 
-	init_done = 0;
+	init_done = 1;
 
 	DEBUG_PRINT("Done Initializing timer!\n");
 
@@ -64,6 +85,3 @@ timer_destroy (
 
 	return TIMER_OK;
 }
-
-
-/***************************** End Of File ***********************************/
