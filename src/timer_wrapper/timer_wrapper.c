@@ -49,7 +49,7 @@ timer_init (
         {
             if (ret_val == INTERRUPT_ALREADY_INITIALIZED)
             {
-                DEBUG_PRINT("Interrupts already initialized", ret_val);
+                DEBUG_PRINT("Interrupts already initialized");
             }
             else
             {

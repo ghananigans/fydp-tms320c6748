@@ -9,17 +9,18 @@
 #define UTIL_H_
 
 #include "uart_wrapper/uart_wrapper.h"
+#include <stdio.h>
 
 /*
  * Use this macro for regular output.
  */
-#define NORMAL_PRINT(format, ...) uart_print(               \
+#define NORMAL_PRINT(format, ...) printf(               \
             format, ##__VA_ARGS__)
 
 /*
  * Use this macro for error output.
  */
-#define ERROR_PRINT(format, ...) uart_print(                \
+#define ERROR_PRINT(format, ...) printf(                \
             format, ##__VA_ARGS__)
 
 /*

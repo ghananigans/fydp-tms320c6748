@@ -19,7 +19,14 @@
 **                      INTERNAL MACRO DEFINITIONS
 *******************************************************************************/
 /* value to configure SMIO,SOMI,CLK and CS pin as functional pin */
-#define SIMO_SOMI_CLK_CS        (0x00000E04)
+#define SOMI_FUNCTIONAL         (0x1 << 10)
+#define SIMO_FUNCTIONAL         (0x1 << 9)
+#define CLK_FUNCTIONAL          (0x1 << 8)
+#define CS_5_FUNCTIONAL         (0x1 << 4)
+//#define SIMO_SOMI_CLK_CS        (0x00000E04)
+//#define	SIMO_SOMI_CLK_CS        (SOMI_FUNCTIONAL | SIMO_FUNCTIONAL           \
+//                                 | CLK_FUNCTIONAL | CS_5_FUNCTIONAL)
+#define SIMO_SOMI_CLK_CS        (0x00000E30)
 #define CHAR_LENGTH             (0x8)
 #define CS_VALUE                (0x20)
 
@@ -147,18 +154,20 @@ spi_setup (
 
     SPIPinControl(SOC_SPI_0_REGS, 0, 0, &val);
 
-    /* Configures SPI Data Format Register */
-    spi_config_data_format_reg(SPI_DATA_FORMAT0);
-
     //SPIClkConfigure(SOC_SPI_1_REGS, 150000000, 20000000, SPI_DATA_FORMAT0);
     SPIClkConfigure(SOC_SPI_0_REGS, 150000000, 1000000, SPI_DATA_FORMAT0);
 
-    SPIDefaultCSSet(SOC_SPI_0_REGS, dcs);
+    /* Configures SPI Data Format Register */
+    spi_config_data_format_reg(SPI_DATA_FORMAT0);
+
+    //SPIDefaultCSSet(SOC_SPI_0_REGS, dcs);
 
      /* Selects the SPI Data format register to used and Sets CSHOLD
       * to assert CS pin(line)
       */
     //SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0);
+
+    SPIDelayConfigure(SOC_SPI_0_REGS, 0, 0, 0, 3);
 
      /* map interrupts to interrupt line INT1 */
     SPIIntLevelSet(SOC_SPI_0_REGS, SPI_RECV_INTLVL | SPI_TRANSMIT_INTLVL);
@@ -197,7 +206,7 @@ spi_init (
     /*
      * Using the Chip Select(CS) 5 pin of SPI0.
      */
-    SPI1CSPinMuxSetup(5);
+    SPI0CSPinMuxSetup(5);
 
     /*
      * Initialize SPI w/ Interrupts.

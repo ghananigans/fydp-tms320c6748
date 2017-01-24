@@ -11,6 +11,7 @@
 #include "timer_wrapper/timer_wrapper.h"
 #include "spi_wrapper/spi_wrapper.h"
 #include <stdbool.h>
+#include <time.h>
 
 static bool volatile timer_flag = 0;
 
@@ -45,7 +46,7 @@ main (
     /*
      * Try reading uart and printing it back.
      */
-    uart_print("Enter some text : ");
+    /*uart_print("Enter some text : ");
     uart_read(buffer, 50);
 
     for (a = 0; a < 50; ++a)
@@ -53,7 +54,7 @@ main (
         DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
     }
 
-    uart_print("%s\n", buffer);
+    uart_print("%s\n", buffer);*/
 
     /*
      * Init the timer.
@@ -80,7 +81,35 @@ main (
     ASSERT(ret_val == SPI_OK, "SPI init failed!\n");
 
     DEBUG_PRINT("Sending spi data\n");
-    spi_send(buffer, 50);
+    buffer[0] = 0xff;
+    buffer[1] = 0xaa;
+    buffer[2] = 0x00;
+    buffer[3] = 0x55;
+    buffer[4] = 0xff;
+
+    spi_send(buffer, 5);
+    for (a = 0; a < 50; ++a)
+	{
+		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
+	}
+
+    /*
+     * Check how long it takes to do float operations
+     */
+    double x = 3.3;
+    double y = 3.5;
+    double z = 3.8;
+    time_t sec = time(NULL);
+    time_t sec2;
+    for (a = 0; a < 125000000; ++a)
+    {
+        z = ++x * y;
+
+    }
+    sec2 = time(NULL);
+
+    DEBUG_PRINT("TIME DIFF = %d\n", sec2 - sec);
+
 
     /*
      * Loop forever.
