@@ -135,7 +135,7 @@ spi_setup (
      * Configures the polarity and phase of SPI clock
      */
     SPIConfigClkFormat(SPI_REG,
-                        (SPI_CLK_POL_LOW | SPI_CLK_INPHASE),
+                        (SPI_CLK_POL_LOW | SPI_CLK_OUTOFPHASE),
                         DATA_FORMAT);
 
 	/*
@@ -154,7 +154,6 @@ spi_setup (
       * Selects the SPI Data format register to use and add max delay
       * between transactions.
       */
-    //SPIDat1Config(SPI_REG, (SPI_SPIDAT1_CSHOLD | DATA_FORMAT), 0);
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL | DATA_FORMAT), 0);
 
     /*
