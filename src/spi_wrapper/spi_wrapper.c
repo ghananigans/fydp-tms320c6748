@@ -19,16 +19,12 @@
 **                      INTERNAL MACRO DEFINITIONS
 *******************************************************************************/
 /* value to configure SMIO,SOMI,CLK and CS pin as functional pin */
-#define SOMI_FUNCTIONAL         (0x1 << 10)
-#define SIMO_FUNCTIONAL         (0x1 << 9)
-#define CLK_FUNCTIONAL          (0x1 << 8)
-#define CS_5_FUNCTIONAL         (0x1 << 4)
-//#define SIMO_SOMI_CLK_CS        (0x00000E04)
-//#define	SIMO_SOMI_CLK_CS        (SOMI_FUNCTIONAL | SIMO_FUNCTIONAL           \
-//                                 | CLK_FUNCTIONAL | CS_5_FUNCTIONAL)
 #define SIMO_SOMI_CLK_CS        (0x00000E30)
 #define CHAR_LENGTH             (0x8)
-#define CS_VALUE                (0x20)
+#define	DATA_FORMAT             SPI_DATA_FORMAT0
+#define SPI_REG                 SOC_SPI_0_REGS
+#define SPI_CS0                 (0x10)
+#define SPI_CS1                 (0x20)
 
 /****************************************************************************/
 /*                      GLOBAL VARIABLES                                    */
@@ -62,7 +58,7 @@ spi_isr (
     IntSystemStatusClear(56);
 #endif
 
-    intCode = SPIInterruptVectorGet(SOC_SPI_0_REGS);
+    intCode = SPIInterruptVectorGet(SPI_REG);
 
     while (intCode)
     {
@@ -70,12 +66,12 @@ spi_isr (
         {
             tx_len--;
 
-            SPITransmitData1(SOC_SPI_0_REGS, *p_tx);
+            SPITransmitData1(SPI_REG, *p_tx);
 
             p_tx++;
             if (!tx_len)
             {
-                SPIIntDisable(SOC_SPI_0_REGS, SPI_TRANSMIT_INT);
+                SPIIntDisable(SPI_REG, SPI_TRANSMIT_INT);
             }
         }
 
@@ -83,97 +79,104 @@ spi_isr (
         {
             rx_len--;
 
-            *p_rx = (char)SPIDataReceive(SOC_SPI_0_REGS);
+            *p_rx = (char)SPIDataReceive(SPI_REG);
 
             p_rx++;
             if (!rx_len)
             {
                 flag = 0;
-                SPIIntDisable(SOC_SPI_0_REGS, SPI_RECV_INT);
+                SPIIntDisable(SPI_REG, SPI_RECV_INT);
             }
         }
 
-        intCode = SPIInterruptVectorGet(SOC_SPI_0_REGS);
+        intCode = SPIInterruptVectorGet(SPI_REG);
     }
 }
 
 /*
-** Configures Data Format register of SPI
-**
-*/
-static
-void
-spi_config_data_format_reg (
-    unsigned int dataFormat
-    )
-{
-    /* Configures the polarity and phase of SPI clock */
-    /*
-	SPIConfigClkFormat(SOC_SPI_1_REGS,
-                       (SPI_CLK_POL_HIGH | SPI_CLK_INPHASE),
-                       dataFormat);
-    */
-    SPIConfigClkFormat(SOC_SPI_0_REGS,
-                       (SPI_CLK_POL_LOW | SPI_CLK_INPHASE),
-                       dataFormat);
-
-    /* Configures SPI to transmit MSB bit First during data transfer */
-    SPIShiftMsbFirst(SOC_SPI_0_REGS, dataFormat);
-
-    /* Sets the Charcter length */
-    SPICharLengthSet(SOC_SPI_0_REGS, CHAR_LENGTH, dataFormat);
-}
-
-/*
-** Configures SPI Controller
-**
-*/
+ * Configures SPI Controller.
+ */
 static
 void
 spi_setup (
     void
     )
 {
-    unsigned char dcs = 0x20;
     unsigned int  val = SIMO_SOMI_CLK_CS;
 
-    // Register the ISR in the vector table
+    /*
+     * Register the ISR in the vector table
+     */
     IntRegister(C674X_MASK_INT4, spi_isr);
 
-    // Map system interrupt to the DSP maskable interrupt
+    /*
+     * Map system interrupt to the DSP maskable interrupt
+     */
     IntEventMap(C674X_MASK_INT4, SYS_INT_SPI0_INT);
 
     // Enable the DSP maskable interrupt
     IntEnable(C674X_MASK_INT4);
 
-    SPIReset(SOC_SPI_0_REGS);
+    SPIReset(SPI_REG);
 
-    SPIOutOfReset(SOC_SPI_0_REGS);
+    SPIOutOfReset(SPI_REG);
 
-    SPIModeConfigure(SOC_SPI_0_REGS, SPI_MASTER_MODE);
+    SPIModeConfigure(SPI_REG, SPI_MASTER_MODE);
 
-    SPIPinControl(SOC_SPI_0_REGS, 0, 0, &val);
+    SPIPinControl(SPI_REG, 0, 0, &val);
 
-    //SPIClkConfigure(SOC_SPI_1_REGS, 150000000, 20000000, SPI_DATA_FORMAT0);
-    SPIClkConfigure(SOC_SPI_0_REGS, 150000000, 1000000, SPI_DATA_FORMAT0);
+    SPIClkConfigure(SPI_REG, 150000000, 1000000, DATA_FORMAT);
 
-    /* Configures SPI Data Format Register */
-    spi_config_data_format_reg(SPI_DATA_FORMAT0);
+    /*
+     * Configures SPI Data Format Register
+     */
 
-    //SPIDefaultCSSet(SOC_SPI_0_REGS, dcs);
+    /*
+     * Configures the polarity and phase of SPI clock
+     */
+    SPIConfigClkFormat(SPI_REG,
+                        (SPI_CLK_POL_LOW | SPI_CLK_INPHASE),
+                        DATA_FORMAT);
 
-     /* Selects the SPI Data format register to used and Sets CSHOLD
-      * to assert CS pin(line)
+	/*
+	 * Configures SPI to transmit MSB bit First during data transfer
+	 */
+	SPIShiftMsbFirst(SPI_REG, DATA_FORMAT);
+
+	/*
+	 * Sets the Charcter length
+	 */
+	SPICharLengthSet(SPI_REG, CHAR_LENGTH, DATA_FORMAT);
+
+    //SPIDefaultCSSet(SPI_REG, dcs);
+
+     /*
+      * Selects the SPI Data format register to use and add max delay
+      * between transactions.
       */
-    //SPIDat1Config(SOC_SPI_0_REGS, (SPI_CSHOLD | SPI_DATA_FORMAT0), 0);
+    //SPIDat1Config(SPI_REG, (SPI_SPIDAT1_CSHOLD | DATA_FORMAT), 0);
+    SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL | DATA_FORMAT), 0);
 
-    SPIDelayConfigure(SOC_SPI_0_REGS, 0, 0, 0, 3);
+    /*
+     * Maximum delay from CS edges to start and end of transmission
+     * of data.
+     */
+    SPIDelayConfigure(SPI_REG, 0, 0, 0xFF, 0xFF);
 
-     /* map interrupts to interrupt line INT1 */
-    SPIIntLevelSet(SOC_SPI_0_REGS, SPI_RECV_INTLVL | SPI_TRANSMIT_INTLVL);
+    /*
+     * Delay between transactions (max ammount of delay).
+     */
+    //SPIWdelaySet(SPI_REG, 0x3F, DATA_FORMAT);
 
-    /* Enable SPI communication */
-    SPIEnable(SOC_SPI_0_REGS);
+     /*
+      * map interrupts to interrupt line INT1
+      */
+    SPIIntLevelSet(SPI_REG, SPI_RECV_INTLVL | SPI_TRANSMIT_INTLVL);
+
+    /*
+     * Enable SPI communication
+     */
+    SPIEnable(SPI_REG);
 }
 
 /******************************************************************************/
@@ -195,7 +198,7 @@ spi_init (
     /*
      * Waking up the SPI1 instance.
      */
-    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_SPI0, PSC_POWERDOMAIN_ALWAYS_ON,
+    PSCModuleControl(SPI_REG, HW_PSC_SPI0, PSC_POWERDOMAIN_ALWAYS_ON,
                      PSC_MDCTL_NEXT_ENABLE);
 
     /*
@@ -204,9 +207,10 @@ spi_init (
     SPIPinMuxSetup(0);
 
     /*
-     * Using the Chip Select(CS) 5 pin of SPI0.
+     * Using the Chip Select(CS) 5 and 4 pin of SPI0.
      */
     SPI0CSPinMuxSetup(5);
+    SPI0CSPinMuxSetup(4);
 
     /*
      * Initialize SPI w/ Interrupts.
@@ -222,30 +226,69 @@ spi_init (
 }
 
 /*
-** Enables SPI Transmit and Receive interrupt.
-** Deasserts Chip Select line.
-*/
+ * Enables SPI Transmit and Receive interrupt.
+ * Deasserts Chip Select line.
+ *
+ * CS should be 0 or 1 only.
+ */
 int
-spi_send (
+spi_send_and_receive (
     unsigned char * data,
-    unsigned int len
+    unsigned int len,
+    unsigned int cs
     )
 {
+    if (cs > 1)
+    {
+        ERROR_PRINT("CS is not 0 or 1; Only supporting 2 CS (Got: %d)", cs);
+        return SPI_INVALID_CS;
+    }
+
+    /*
+     * Get actual cs pin mask.
+     */
+    switch (cs)
+    {
+        case 0:
+            cs = SPI_CS0;
+            break;
+        case 1:
+            cs = SPI_CS1;
+            break;
+        default:
+            // Wont ever get here
+            ERROR_PRINT("SHOULD NEVER BE HERE!?!?!?!?!?!?!??! cs = %d\n", cs);
+            break;
+    }
+
     p_tx = data;
     p_rx = data;
 
     tx_len = len;
     rx_len = len;
 
-    /* Asserts the CS pin(line) */
-    SPIDat1Config(SOC_SPI_0_REGS, SPI_DATA_FORMAT0, CS_VALUE);
+    /*
+     * Assert the CS pin.
+     */
+    SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
+                | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
 
-    SPIIntEnable(SOC_SPI_0_REGS, (SPI_RECV_INT | SPI_TRANSMIT_INT));
-    while(flag);
+    /*
+     * Enable the interrupts.
+     */
+    SPIIntEnable(SPI_REG, (SPI_RECV_INT | SPI_TRANSMIT_INT));
+
+    /*
+     * Wait for flag to change (transaction to finish).
+     */
+    while (flag);
     flag = 1;
 
-    /* Deasserts the CS pin(line) */
-    SPIDat1Config(SOC_SPI_0_REGS, SPI_DATA_FORMAT0, CS_VALUE);
+    /*
+     * Deasserts the CS pin. (Notice no CSHOLD flag)
+     */
+    SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
+                | DATA_FORMAT), cs);
 
     return SPI_OK;
 }

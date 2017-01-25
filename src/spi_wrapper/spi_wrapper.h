@@ -12,7 +12,8 @@ enum SPI_ERROR_CODES
 {
     SPI_OK,
     SPI_ALREADY_INITIALIZED,
-    SPI_NOT_INTIAILZED
+    SPI_NOT_INTIAILZED,
+    SPI_INVALID_CS
 };
 
 int
@@ -21,9 +22,10 @@ spi_init (
     );
 
 int
-spi_send (
+spi_send_and_receive (
     unsigned char * data,
-    unsigned int len
+    unsigned int len,
+    unsigned int cs
     );
 
 

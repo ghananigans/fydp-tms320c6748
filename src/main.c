@@ -38,7 +38,7 @@ main (
      * statements can be seen
      */
     ret_val = uart_init();
-    ASSERT(ret_val == UART_OK, "UART Init failed!\n");
+    ASSERT(ret_val == UART_OK, "UART Init failed! (%d)\n", ret_val);
 
     NORMAL_PRINT("Application Starting\n");
     DEBUG_PRINT("Debug prints are enabled\n");
@@ -60,7 +60,7 @@ main (
      * Init the timer.
      */
     ret_val = timer_init(&timer_function, 1000);
-    ASSERT(ret_val == TIMER_OK, "Timer Init failed!\n");
+    ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
     /*
      * Loop 10 times to see timer ticking 10 times.
@@ -78,7 +78,7 @@ main (
      * Init spi.
      */
     ret_val = spi_init();
-    ASSERT(ret_val == SPI_OK, "SPI init failed!\n");
+    ASSERT(ret_val == SPI_OK, "SPI init failed! (%d)\n", ret_val);
 
     DEBUG_PRINT("Sending spi data\n");
     buffer[0] = 0xff;
@@ -87,7 +87,8 @@ main (
     buffer[3] = 0x55;
     buffer[4] = 0xff;
 
-    spi_send(buffer, 5);
+    ret_val = spi_send_and_receive(buffer, 5, 1);
+    ASSERT(ret_val == SPI_OK, "SPI send failed! (%d)\n", ret_val);
     for (a = 0; a < 50; ++a)
 	{
 		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
