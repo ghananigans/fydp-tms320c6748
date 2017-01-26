@@ -135,7 +135,7 @@ spi_setup (
      * Configures the polarity and phase of SPI clock
      */
     SPIConfigClkFormat(SPI_REG,
-                        (SPI_CLK_POL_LOW | SPI_CLK_OUTOFPHASE),
+                        (SPI_CLK_POL_HIGH | SPI_CLK_OUTOFPHASE),
                         DATA_FORMAT);
 
 	/*
@@ -156,11 +156,14 @@ spi_setup (
       */
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL | DATA_FORMAT), 0);
 
+    //SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL | DATA_FORMAT), SPI_CS0);
+    //SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL | DATA_FORMAT), SPI_CS1);
+
     /*
      * Maximum delay from CS edges to start and end of transmission
      * of data.
      */
-    SPIDelayConfigure(SPI_REG, 0, 0, 0xFF, 0xFF);
+    SPIDelayConfigure(SPI_REG, 0, 0, 0x0, 0x0);
 
     /*
      * Delay between transactions (max ammount of delay).
@@ -197,7 +200,7 @@ spi_init (
     /*
      * Waking up the SPI1 instance.
      */
-    PSCModuleControl(SPI_REG, HW_PSC_SPI0, PSC_POWERDOMAIN_ALWAYS_ON,
+    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_SPI0, PSC_POWERDOMAIN_ALWAYS_ON,
                      PSC_MDCTL_NEXT_ENABLE);
 
     /*
@@ -237,6 +240,12 @@ spi_send_and_receive (
     unsigned int cs
     )
 {
+    if (init_done == 0)
+    {
+        ERROR_PRINT("SPI is not initialized!\n");
+        return SPI_NOT_INTIAILZED;
+    }
+
     if (cs > 1)
     {
         ERROR_PRINT("CS is not 0 or 1; Only supporting 2 CS (Got: %d)", cs);
@@ -260,6 +269,8 @@ spi_send_and_receive (
             break;
     }
 
+    DEBUG_PRINT("Sending and receiving spi data with cs: %d\n", cs);
+
     p_tx = data;
     p_rx = data;
 
@@ -272,6 +283,8 @@ spi_send_and_receive (
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
                 | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
 
+    DEBUG_PRINT("Waiting for transaction to finish...\n");
+
     /*
      * Enable the interrupts.
      */
@@ -282,6 +295,7 @@ spi_send_and_receive (
      */
     while (flag);
     flag = 1;
+    DEBUG_PRINT("Transaction finished!\n");
 
     /*
      * Deasserts the CS pin. (Notice no CSHOLD flag)

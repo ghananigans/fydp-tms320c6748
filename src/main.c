@@ -7,9 +7,11 @@
 #endif
 
 #include "util.h"
+#include "interrupt_wrapper/interrupt_wrapper.h"
 #include "uart_wrapper/uart_wrapper.h"
 #include "timer_wrapper/timer_wrapper.h"
 #include "spi_wrapper/spi_wrapper.h"
+#include "dac_wrapper/dac_wrapper.h"
 #include <stdbool.h>
 #include <time.h>
 
@@ -44,6 +46,24 @@ main (
     DEBUG_PRINT("Debug prints are enabled\n");
 
     /*
+     * Init system interrupts.
+     */
+    ret_val = init_interrupt();
+    ASSERT(ret_val == INTERRUPT_OK, "Interrupt init failed! (%d)\n", ret_val);
+
+    /*
+     * Init spi.
+     */
+    ret_val = spi_init();
+    ASSERT(ret_val == SPI_OK, "SPI init failed! (%d)\n", ret_val);
+
+    /*
+     * Init dac.
+     */
+    ret_val = dac_init(1);
+    ASSERT(ret_val == DAC_OK, "DAC init failed! (%d)\n", ret_val);
+
+    /*
      * Try reading uart and printing it back.
      */
     /*uart_print("Enter some text : ");
@@ -65,7 +85,7 @@ main (
     /*
      * Loop 10 times to see timer ticking 10 times.
      */
-    a = 0;
+    a = 10;
     while (a < 10)
     {
         while (timer_flag == 0);
@@ -73,12 +93,6 @@ main (
 
         DEBUG_PRINT("TIMER TICKED %d!\n", a++);
     }
-
-    /*
-     * Init spi.
-     */
-    ret_val = spi_init();
-    ASSERT(ret_val == SPI_OK, "SPI init failed! (%d)\n", ret_val);
 
     DEBUG_PRINT("Sending spi data\n");
     buffer[0] = 0xff;
@@ -110,7 +124,6 @@ main (
     sec2 = time(NULL);
 
     DEBUG_PRINT("TIME DIFF = %d\n", sec2 - sec);
-
 
     /*
      * Loop forever.
