@@ -108,6 +108,12 @@ main (
 		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
 	}
 
+    ret_val = dac_update(0, 0);
+    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+    ret_val = dac_update(5, 0x1234);
+    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
     /*
      * Check how long it takes to do float operations
      */
