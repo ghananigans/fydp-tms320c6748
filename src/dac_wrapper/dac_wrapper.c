@@ -286,7 +286,7 @@ dac_update (
     DEBUG_PRINT("Sending update command to DAC channel [%d] with data [0x%05x]\n", address, data);
 
     command.update.address = address;
-    command.update.data = NIBBLE_SWAP_16(data);
+    command.update.data = data;
     command.update.control = DCC_WRITE_TO_INPUT_REGISTER_AND_UPDATE_DAC_REGISTER;
     command.update.zero = 0;
 

@@ -15,6 +15,10 @@
 #include <stdbool.h>
 #include <time.h>
 
+
+#define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
+#define CHANNEL DAC_ADDRESS_CHANNEL_7
+
 static bool volatile timer_flag = 0;
 
 static inline
@@ -34,6 +38,7 @@ main (
     int a;
     int ret_val;
     char buffer[50];
+    unsigned int d;
 
     /*
      * Init uart before everything else so debug
@@ -94,39 +99,32 @@ main (
         DEBUG_PRINT("TIMER TICKED %d!\n", a++);
     }
 
-    /*
-    DEBUG_PRINT("Sending spi data\n");
-    buffer[0] = 0xff;
-    buffer[1] = 0xaa;
-    buffer[2] = 0x00;
-    buffer[3] = 0x55;
-    buffer[4] = 0xff;
-
-    ret_val = spi_send_and_receive(buffer, 5, 1);
-    ASSERT(ret_val == SPI_OK, "SPI send failed! (%d)\n", ret_val);
-    for (a = 0; a < 50; ++a)
-	{
-		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
-	}*/
-
-    // Power on dac channel A
-    ret_val = dac_power_up(DAC_POWER_ON_CHANNEL_0);
+    // Power on dac channel
+    ret_val = dac_power_up(CHANNEL_POWER);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
-    // Channel 0 to 0
-    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, 0);
+    // Channel to 0
+    ret_val = dac_update(CHANNEL, 0);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-    // Channel A to 5
-    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, -1);
+    // Channel ~ MAX_VOLTAGE * (1/5)
+    ret_val = dac_update(CHANNEL, 13000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-    // Channel A to 0
-    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, 0);
+    // Channel ~ MAX_VOLTAGE * (2/5)
+    ret_val = dac_update(CHANNEL, 26000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-    // Channel A to 5
-    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, -1);
+    // Channel ~ MAX_VOLTAGE * (3/5)
+    ret_val = dac_update(CHANNEL, 39000);
+    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+    // Channel ~ MAX_VOLTAGE * (4/5)
+    ret_val = dac_update(CHANNEL, 52000);
+    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+    // Channel ~ MAX_VOLTAGE
+    ret_val = dac_update(CHANNEL, 65000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     /*
