@@ -15,9 +15,9 @@
 #include "interrupt.h"
 #include <stdbool.h>
 
-/******************************************************************************
-**                      INTERNAL MACRO DEFINITIONS
-*******************************************************************************/
+/******************************************************************************/
+/*                      INTERNAL MACRO DEFINITIONS                            */
+/******************************************************************************/
 /* value to configure SMIO,SOMI,CLK and CS pin as functional pin */
 #define SIMO_SOMI_CLK_CS        (0x00000E30)
 #define CHAR_LENGTH             (0x8)
@@ -27,7 +27,7 @@
 #define SPI_CS1                 (0x20)
 
 /****************************************************************************/
-/*                      GLOBAL VARIABLES                                    */
+/*                      INTERNAL GLOBAL VARIABLES                           */
 /****************************************************************************/
 static bool init_done = 0;
 static volatile unsigned int flag = 1;
@@ -36,10 +36,9 @@ static unsigned int rx_len;
 static unsigned char * p_tx;
 static unsigned char volatile * p_rx;
 
-/******************************************************************************
-**                      INTERNAL FUNCTION DEFINITIONS
-*******************************************************************************/
-
+/******************************************************************************/
+/*                      INTERNAL FUNCTION DEFINITIONS                         */
+/******************************************************************************/
 /*
 ** Data transmission and receiption SPIIsr
 **

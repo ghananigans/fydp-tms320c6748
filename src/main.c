@@ -94,6 +94,7 @@ main (
         DEBUG_PRINT("TIMER TICKED %d!\n", a++);
     }
 
+    /*
     DEBUG_PRINT("Sending spi data\n");
     buffer[0] = 0xff;
     buffer[1] = 0xaa;
@@ -106,12 +107,26 @@ main (
     for (a = 0; a < 50; ++a)
 	{
 		DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
-	}
+	}*/
 
-    ret_val = dac_update(0, 0);
+    // Power on dac channel A
+    ret_val = dac_power_up(DAC_POWER_ON_CHANNEL_0);
+    ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
+
+    // Channel 0 to 0
+    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, 0);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-    ret_val = dac_update(5, 0x1234);
+    // Channel A to 5
+    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, -1);
+    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+    // Channel A to 0
+    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, 0);
+    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+    // Channel A to 5
+    ret_val = dac_update(DAC_ADDRESS_CHANNEL_0, -1);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     /*
