@@ -38,7 +38,6 @@ main (
     int a;
     int ret_val;
     char buffer[50];
-    unsigned int d;
 
     /*
      * Init uart before everything else so debug
@@ -104,27 +103,27 @@ main (
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
     // Channel to 0
-    ret_val = dac_update(CHANNEL, 0);
+    ret_val = dac_update(CHANNEL, (uint16_t) 0);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     // Channel ~ MAX_VOLTAGE * (1/5)
-    ret_val = dac_update(CHANNEL, 13000);
+    ret_val = dac_update(CHANNEL, (uint16_t) 13000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     // Channel ~ MAX_VOLTAGE * (2/5)
-    ret_val = dac_update(CHANNEL, 26000);
+    ret_val = dac_update(CHANNEL, (uint16_t) 26000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     // Channel ~ MAX_VOLTAGE * (3/5)
-    ret_val = dac_update(CHANNEL, 39000);
+    ret_val = dac_update(CHANNEL, (uint16_t) 39000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     // Channel ~ MAX_VOLTAGE * (4/5)
-    ret_val = dac_update(CHANNEL, 52000);
+    ret_val = dac_update(CHANNEL, (uint16_t) 52000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     // Channel ~ MAX_VOLTAGE
-    ret_val = dac_update(CHANNEL, 65000);
+    ret_val = dac_update(CHANNEL, (uint16_t) 65000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
     /*

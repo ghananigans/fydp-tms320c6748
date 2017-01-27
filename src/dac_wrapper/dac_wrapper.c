@@ -51,7 +51,7 @@
 /*                      INTERNAL DATA STRUCTURE DEFINITIONS                   */
 /******************************************************************************/
 #pragma pack(push, 1)
-typedef union _dac_command
+typedef union _dac_command_t
 {
     struct
     {
@@ -88,7 +88,6 @@ typedef union _dac_command
 /******************************************************************************/
 /*                      INTERNAL GLOBAL VARIABLES                             */
 /******************************************************************************/
-static bool dac_channel_init_done[DAC_CHANNELS];
 static bool init_done = 0;
 static unsigned int spi_cs;
 
@@ -120,7 +119,7 @@ dac_command_send (
     payload->as_uint32t = ENDIAN_SWAP_32(payload->as_uint32t);
     DEBUG_PRINT("Payload AS uint32_t after endian swap: 0x%x\n", payload->as_uint32t);
 
-    ret_val = spi_send_and_receive(payload, sizeof(dac_command_t), spi_cs);
+    ret_val = spi_send_and_receive((unsigned char *) payload, sizeof(dac_command_t), spi_cs);
 
     if (ret_val != SPI_OK)
     {
@@ -152,11 +151,11 @@ dac_power (
         return DAC_OK;
     }
 
-    DEBUG_PRINT("Sending power related command to dac with dac flags [0x%02x] and config [0x%x]", dac_flags, command.power.config);
-
     command.power.dacs = dac_flags;
     command.power.config = (power_up ? 0x0 : 0x2);
     command.power.control = DCC_POWER;
+
+    DEBUG_PRINT("Sending power related command to dac with dac flags [0x%02x] and config [0x%x]", dac_flags, command.power.config);
 
     return dac_command_send(&command);
 }
@@ -179,9 +178,6 @@ dac_init (
     }
 
     DEBUG_PRINT("Initializing dac...\n");
-
-    // Reset dac channel init done flags
-    memset(&dac_channel_init_done, 0, sizeof(dac_channel_init_done));
 
     spi_cs = cs;
 
