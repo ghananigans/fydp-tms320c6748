@@ -10,6 +10,10 @@
 #include "../interrupt_wrapper/interrupt_wrapper.h"
 #include "../util.h"
 #include "systick.h"
+#include "timer.h"
+#include "soc_c6748.h"
+
+#define TICKS_PER_MICROSECOND (24)
 
 /****************************************************************************/
 /*                      GLOBAL VARIABLES                                    */
@@ -22,7 +26,7 @@ static bool init_done = 0;
 int
 timer_init (
     void (* func)(void),
-    unsigned int milliseconds
+    unsigned int microseconds
     )
 {
     if (init_done)
@@ -34,8 +38,9 @@ timer_init (
     DEBUG_PRINT("Initializing Timer...\n");
 
     TimerTickConfigure(func);
-    TimerTickPeriodSet(milliseconds);
-    TimerTickEnable();
+    //TimerTickPeriodSet(microseconds * 1000);
+    TimerPeriodSet(SOC_TMR_0_REGS, TMR_TIMER34, (microseconds * TICKS_PER_MICROSECOND));
+    TimerReloadSet(SOC_TMR_0_REGS, TMR_TIMER34, (microseconds * TICKS_PER_MICROSECOND));
 
     init_done = 1;
 
@@ -45,13 +50,21 @@ timer_init (
 }
 
 int
-timer_destroy (
+timer_start (
     void
     )
 {
-    /* Disable the timer. No more timer interrupts */
+    TimerTickEnable();
+
+    return TIMER_OK;
+}
+
+int
+timer_stop (
+    void
+    )
+{
     TimerTickDisable();
-    init_done = 0;
 
     return TIMER_OK;
 }

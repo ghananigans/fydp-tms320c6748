@@ -50,6 +50,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/libs/include/hw}&quot;"/>
 								</option>
 								<option id="com.ti.ccstudio.buildDefinitions.C6000_7.3.compilerID.ABI.1051985735" name="Application binary interface (coffabi, eabi) (--abi)" superClass="com.ti.ccstudio.buildDefinitions.C6000_7.3.compilerID.ABI" value="com.ti.ccstudio.buildDefinitions.C6000_7.3.compilerID.ABI.coffabi" valueType="enumerated"/>
+								<option id="com.ti.ccstudio.buildDefinitions.C6000_7.3.compilerID.OPT_FOR_SPEED.1348593448" name="Optimize for speed (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.C6000_7.3.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.C6000_7.3.compilerID.OPT_FOR_SPEED._none" valueType="enumerated"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.C6000_7.3.compiler.inputType__C_SRCS.710982358" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.C6000_7.3.compiler.inputType__C_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.C6000_7.3.compiler.inputType__CPP_SRCS.616298465" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.C6000_7.3.compiler.inputType__CPP_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.C6000_7.3.compiler.inputType__ASM_SRCS.265794256" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.C6000_7.3.compiler.inputType__ASM_SRCS"/>

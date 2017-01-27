@@ -18,11 +18,16 @@ enum TIMER_ERROR_CODES {
 int
 timer_init (
     void (* func)(void),
-    unsigned int milliseconds
+    unsigned int microseconds
     );
 
 int
-timer_destroy (
+timer_start (
+    void
+    );
+
+int
+timer_stop (
     void
     );
 
