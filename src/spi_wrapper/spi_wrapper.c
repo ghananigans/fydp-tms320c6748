@@ -276,13 +276,13 @@ spi_send_and_receive (
     tx_len = len;
     rx_len = len;
 
+    DEBUG_PRINT("Transaction starting...\n");
+
     /*
      * Assert the CS pin.
      */
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
                 | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
-
-    DEBUG_PRINT("Waiting for transaction to finish...\n");
 
     /*
      * Enable the interrupts.
@@ -294,13 +294,14 @@ spi_send_and_receive (
      */
     while (flag);
     flag = 1;
-    DEBUG_PRINT("Transaction finished!\n");
 
     /*
      * Deasserts the CS pin. (Notice no CSHOLD flag)
      */
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
                 | DATA_FORMAT), cs);
+
+    DEBUG_PRINT("Transaction finished!\n");
 
     return SPI_OK;
 }
