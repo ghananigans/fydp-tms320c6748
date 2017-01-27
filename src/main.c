@@ -14,10 +14,20 @@
 #include "dac_wrapper/dac_wrapper.h"
 #include <stdbool.h>
 #include <time.h>
+#include <math.h>
 
 
 #define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
 #define CHANNEL DAC_ADDRESS_CHANNEL_7
+
+#ifndef PI
+#define PI (3.14159265358979323846)
+#endif
+
+#define SAMPLING_FREQUENCY (50000)
+#define COS_FREQ           (5000)
+#define NUM_SAMPLES        (SAMPLING_FREQUENCY / COS_FREQ)
+#define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
 
 static bool volatile timer_flag = 0;
 
@@ -38,6 +48,10 @@ main (
     int a;
     int ret_val;
     char buffer[50];
+    double x;
+    double y;
+    uint16_t val[NUM_SAMPLES];
+    int i;
 
     /*
      * Init uart before everything else so debug
@@ -48,7 +62,6 @@ main (
 
     NORMAL_PRINT("Application Starting\n");
     DEBUG_PRINT("Debug prints are enabled\n");
-
     /*
      * Init system interrupts.
      */
@@ -83,13 +96,15 @@ main (
     /*
      * Init the timer.
      */
-    ret_val = timer_init(&timer_function, 1000);
+    ret_val = timer_init(&timer_function, TIMER_MICROSECONDS);
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
     /*
      * Loop 10 times to see timer ticking 10 times.
      */
-    a = 10;
+    /*
+    timer_start();
+    a = 0;
     while (a < 10)
     {
         while (timer_flag == 0);
@@ -97,11 +112,14 @@ main (
 
         DEBUG_PRINT("TIMER TICKED %d!\n", a++);
     }
+    timer_stop();
+    */
 
     // Power on dac channel
     ret_val = dac_power_up(CHANNEL_POWER);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
+    /*
     // Channel to 0
     ret_val = dac_update(CHANNEL, (uint16_t) 0);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
@@ -125,12 +143,42 @@ main (
     // Channel ~ MAX_VOLTAGE
     ret_val = dac_update(CHANNEL, (uint16_t) 65000);
     ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+    */
+
+    /*
+     * Pre calculate samples for simple sinusoid output to dac.
+     */
+    x = 0;
+    for (i = 0; i < NUM_SAMPLES; ++i)
+    {
+        y = (cos(2 * COS_FREQ * PI * x) + 1) / 0.00007629394;
+        x += 1.0 / SAMPLING_FREQUENCY;
+        val[i] = (uint16_t) y;
+    }
+
+    i = 0;
+    timer_start();
+    while (1)
+    {
+        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+        while (timer_flag == 0);
+        timer_flag = 0;
+
+        ret_val = dac_update(CHANNEL, val[i]);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        if (++i == NUM_SAMPLES)
+        {
+            i = 0;
+        }
+    }
+    timer_stop();
 
     /*
      * Check how long it takes to do float operations
      */
-    double x = 3.3;
-    double y = 3.5;
+    x = 3.3;
+    y = 3.5;
     double z = 3.8;
     time_t sec = time(NULL);
     time_t sec2;
