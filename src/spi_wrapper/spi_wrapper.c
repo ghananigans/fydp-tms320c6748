@@ -25,6 +25,7 @@
 #define SPI_REG                 SOC_SPI_0_REGS
 #define SPI_CS0                 (0x10)
 #define SPI_CS1                 (0x20)
+#define SPI_SCLK_HZ             (5000000)
 
 /****************************************************************************/
 /*                      INTERNAL GLOBAL VARIABLES                           */
@@ -124,7 +125,7 @@ spi_setup (
 
     SPIPinControl(SPI_REG, 0, 0, &val);
 
-    SPIClkConfigure(SPI_REG, 150000000, 1000000, DATA_FORMAT);
+    SPIClkConfigure(SPI_REG, 150000000, SPI_SCLK_HZ, DATA_FORMAT);
 
     /*
      * Configures SPI Data Format Register
