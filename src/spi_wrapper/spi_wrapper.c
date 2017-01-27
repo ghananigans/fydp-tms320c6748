@@ -25,6 +25,7 @@
 #define SPI_REG                 SOC_SPI_0_REGS
 #define SPI_CS0                 (0x10)
 #define SPI_CS1                 (0x20)
+#define SPI_SCLK_HZ             (5000000)
 
 /****************************************************************************/
 /*                      INTERNAL GLOBAL VARIABLES                           */
@@ -124,7 +125,7 @@ spi_setup (
 
     SPIPinControl(SPI_REG, 0, 0, &val);
 
-    SPIClkConfigure(SPI_REG, 150000000, 1000000, DATA_FORMAT);
+    SPIClkConfigure(SPI_REG, 150000000, SPI_SCLK_HZ, DATA_FORMAT);
 
     /*
      * Configures SPI Data Format Register
@@ -276,13 +277,13 @@ spi_send_and_receive (
     tx_len = len;
     rx_len = len;
 
+    DEBUG_PRINT("Transaction starting...\n");
+
     /*
      * Assert the CS pin.
      */
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
                 | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
-
-    DEBUG_PRINT("Waiting for transaction to finish...\n");
 
     /*
      * Enable the interrupts.
@@ -294,13 +295,14 @@ spi_send_and_receive (
      */
     while (flag);
     flag = 1;
-    DEBUG_PRINT("Transaction finished!\n");
 
     /*
      * Deasserts the CS pin. (Notice no CSHOLD flag)
      */
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
                 | DATA_FORMAT), cs);
+
+    DEBUG_PRINT("Transaction finished!\n");
 
     return SPI_OK;
 }

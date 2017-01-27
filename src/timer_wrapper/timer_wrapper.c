@@ -25,8 +25,6 @@ timer_init (
     unsigned int milliseconds
     )
 {
-    int ret_val;
-
     if (init_done)
     {
         DEBUG_PRINT("Timer is already initialized!\n");
