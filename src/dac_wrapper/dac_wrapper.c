@@ -119,7 +119,7 @@ dac_command_send (
     payload->as_uint32t = ENDIAN_SWAP_32(payload->as_uint32t);
     DEBUG_PRINT("Payload AS uint32_t after endian swap: 0x%x\n", payload->as_uint32t);
 
-    ret_val = spi_send_and_receive((unsigned char *) payload, sizeof(dac_command_t), spi_cs);
+    ret_val = spi_send_and_receive((char volatile *) payload, sizeof(dac_command_t), spi_cs);
 
     if (ret_val != SPI_OK)
     {
