@@ -154,8 +154,9 @@ dac_power (
     command.power.dacs = dac_flags;
     command.power.config = (power_up ? 0x0 : 0x2);
     command.power.control = DCC_POWER;
+    command.power.zero = 0;
 
-    DEBUG_PRINT("Sending power related command to dac with dac flags [0x%02x] and config [0x%x]", dac_flags, command.power.config);
+    DEBUG_PRINT("Sending power related command to dac with dac flags [0x%02x] and config [0x%x]\n", dac_flags, command.power.config);
 
     return dac_command_send(&command);
 }
