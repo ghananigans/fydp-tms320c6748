@@ -31,11 +31,11 @@
 /*                      INTERNAL GLOBAL VARIABLES                           */
 /****************************************************************************/
 static bool init_done = 0;
-static volatile unsigned int flag = 1;
+static unsigned int volatile flag = 1;
 static unsigned int tx_len;
 static unsigned int rx_len;
-static unsigned char * p_tx;
-static unsigned char volatile * p_rx;
+static char volatile * p_tx;
+static char volatile * p_rx;
 
 /******************************************************************************/
 /*                      INTERNAL FUNCTION DEFINITIONS                         */
@@ -235,7 +235,7 @@ spi_init (
  */
 int
 spi_send_and_receive (
-    unsigned char * data,
+    char volatile * data,
     unsigned int len,
     unsigned int cs
     )

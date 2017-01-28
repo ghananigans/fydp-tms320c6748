@@ -23,7 +23,7 @@ spi_init (
 
 int
 spi_send_and_receive (
-    unsigned char * data,
+    char volatile * data,
     unsigned int len,
     unsigned int cs
     );
