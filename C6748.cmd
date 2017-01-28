@@ -34,8 +34,8 @@ MEMORY
                                                
 SECTIONS                                       
 {                                              
-    .text          >  SHRAM                    
-    .stack         >  SHRAM                    
+    .text          >  DDR2
+    .stack         >  SHRAM
     .bss           >  SHRAM                    
     .cio           >  SHRAM                    
     .const         >  SHRAM                    
