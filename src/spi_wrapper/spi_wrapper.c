@@ -40,8 +40,8 @@ static void (*callback_functions[EDMA3_NUM_TCC]) (
     unsigned int tcc,
     unsigned int status
     );
-static volatile unsigned int tx_flag = 0;
-static volatile unsigned int rx_flag = 0;
+static volatile bool tx_flag = 0;
+static volatile bool rx_flag = 0;
 static unsigned int event_queue = 0;
 
 /******************************************************************************/
@@ -58,17 +58,22 @@ callback (
     unsigned int status
     )
 {
-    if (tcc_num == EDMA3_CHA_SPI0_TX)
+    switch (tcc_num)
     {
-        tx_flag = 1;
-        /* Disable SPI-EDMA Communication. */
-        SPIIntDisable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
-    }
-    else if (tcc_num == EDMA3_CHA_SPI0_RX)
-    {
-        rx_flag = 1;
-        /* Disable SPI-EDMA Communication. */
-        SPIIntDisable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
+        case EDMA3_CHA_SPI0_RX:
+            rx_flag = 1;
+            /* Disable SPI-EDMA Communication. */
+            SPIIntDisable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
+            break;
+
+        case EDMA3_CHA_SPI0_TX:
+            tx_flag = 1;
+            /* Disable SPI-EDMA Communication. */
+            SPIIntDisable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -97,7 +102,7 @@ emda3_completion_handler_isr (
 
     if (is_ipr)
     {
-        while ((cnt < EDMA3CC_COMPL_HANDLER_RETRY_COUNT)&& (indexl != 0))
+        while ((cnt < EDMA3CC_COMPL_HANDLER_RETRY_COUNT) && (indexl != 0))
         {
             indexl = 0;
             pending_irqs = EDMA3GetIntrStatus(SOC_EDMA30CC_0_REGS);
