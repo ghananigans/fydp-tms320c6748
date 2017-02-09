@@ -8,10 +8,10 @@
 #ifndef UTIL_H_
 #define UTIL_H_
 
+#include "config.h"
 #include "uart_wrapper/uart_wrapper.h"
 #include <stdio.h>
 
-#undef DEBUG_PRINT_ENABLED
 /*
  * Use this macro for regular output.
  */

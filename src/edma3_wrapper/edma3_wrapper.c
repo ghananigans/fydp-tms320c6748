@@ -47,11 +47,9 @@ emda3_completion_handler_isr (
     volatile unsigned int indexl;
     volatile unsigned int cnt = 0;
     indexl = 1;
-#ifdef _TMS320C6X
+
     IntEventClear(SYS_INT_EDMA3_0_CC0_INT1);
-#else
-    IntSystemStatusClear(SYS_INT_CCINT0);
-#endif
+
     is_ipr = EDMA3GetIntrStatus(SOC_EDMA30CC_0_REGS);
 
     if (is_ipr)
@@ -99,11 +97,7 @@ edma3_ccerr_handler_isr (
     unsigned int region_num = 0;
     unsigned int event_queue_num = 0;
 
-#ifdef _TMS320C6X
     IntEventClear(SYS_INT_EDMA3_0_CC0_ERRINT);
-#else
-    IntSystemStatusClear(SYS_INT_CCERRINT);
-#endif
 
     if ((HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_EMR) != 0 )
         || (HWREG(SOC_EDMA30CC_0_REGS + EDMA3CC_QEMR) != 0)
@@ -214,7 +208,6 @@ edma3_init (
     /*
      * Register EDMA3 Interrupts
      */
-#ifdef _TMS320C6X
     IntRegister(C674X_MASK_INT4, emda3_completion_handler_isr);
     IntRegister(C674X_MASK_INT5, edma3_ccerr_handler_isr);
 
@@ -223,19 +216,6 @@ edma3_init (
 
     IntEnable(C674X_MASK_INT4);
     IntEnable(C674X_MASK_INT5);
-#else
-    IntRegister(SYS_INT_CCINT0, emda3_completion_handler_isr);
-
-    IntChannelSet(SYS_INT_CCINT0, 2);
-
-    IntSystemEnable(SYS_INT_CCINT0);
-
-    IntRegister(SYS_INT_CCERRINT, edma3_ccerr_handler_isr);
-
-    IntChannelSet(SYS_INT_CCERRINT, 2);
-
-    IntSystemEnable(SYS_INT_CCERRINT);
-#endif
 
     init_done = 1;
 

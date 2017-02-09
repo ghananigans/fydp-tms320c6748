@@ -5,21 +5,25 @@
  *      Author: VirtWin
  */
 
-#include "spi_wrapper.h"
+#include "../config.h"
 #include "../util.h"
 #include "soc_C6748.h"
 #include "hw_psc_C6748.h"
 #include "lcdkC6748.h"
 #include "spi.h"
 #include "psc.h"
-#include "edma.h"
-#include "edma_event.h"
 #include "interrupt.h"
 #include <stdbool.h>
 #include "hw_types.h"
 #include <string.h>
+#include "spi_wrapper.h"
+
+#ifdef SPI_EDMA
 #include "dspcache.h"
 #include "../edma3_wrapper/edma3_wrapper.h"
+#include "edma.h"
+#include "edma_event.h"
+#endif //#ifdef SPI_EDMA
 
 /******************************************************************************/
 /*                      INTERNAL MACRO DEFINITIONS                            */
@@ -37,12 +41,22 @@
 /*                      INTERNAL GLOBAL VARIABLES                           */
 /****************************************************************************/
 static bool init_done = 0;
+
+#ifdef SPI_EDMA
 static volatile bool tx_flag = 0;
 static volatile bool rx_flag = 0;
+#else
+static unsigned int volatile flag = 0;
+static unsigned int tx_len = 0;
+static unsigned int rx_len = 0;
+static char volatile * p_tx = 0;
+static char volatile * p_rx = 0;
+#endif //#ifdef SPI_EDMA
 
 /******************************************************************************/
 /*                      INTERNAL FUNCTION DEFINITIONS                         */
 /******************************************************************************/
+#ifdef SPI_EDMA
 /*
 ** This function is used as a callback from EDMA3 Completion Handler.
 ** The DMA Mode operation of SPI0 is disabled over here.
@@ -131,6 +145,56 @@ edma3_param_set_spi_rx (
         return SPI_INTERNAL_FAILURE_EDMA3_PARAM_SET_FAILED;
     }
 }
+#else // #ifdef SPI_EDMA
+/*
+** Data transmission and receiption SPIIsr
+**
+*/
+static
+void
+spi_isr (
+    void
+    )
+{
+    unsigned int intCode = 0;
+
+    IntEventClear(SYS_INT_SPI0_INT);
+
+    intCode = SPIInterruptVectorGet(SPI_REG);
+
+    while (intCode)
+    {
+        if(intCode == SPI_TX_BUF_EMPTY)
+        {
+            tx_len--;
+
+            SPITransmitData1(SPI_REG, *p_tx);
+
+            p_tx++;
+            if (!tx_len)
+            {
+                SPIIntDisable(SPI_REG, SPI_TRANSMIT_INT);
+            }
+        }
+
+        if(intCode == SPI_RECV_FULL)
+        {
+            rx_len--;
+
+            *p_rx = (char)SPIDataReceive(SPI_REG);
+
+            p_rx++;
+            if (!rx_len)
+            {
+                flag = 1;
+                SPIIntDisable(SPI_REG, SPI_RECV_INT);
+            }
+        }
+
+        intCode = SPIInterruptVectorGet(SPI_REG);
+    }
+}
+#endif // #ifdef SPI_EDMA
 
 /*
  * Configures SPI Controller.
@@ -210,6 +274,12 @@ spi_setup (
      */
     //SPIWdelaySet(SPI_REG, 0x3F, DATA_FORMAT);
 
+#ifndef SPI_EDMA
+    /*
+    * map interrupts to interrupt line INT1
+    */
+    SPIIntLevelSet(SPI_REG, SPI_RECV_INTLVL | SPI_TRANSMIT_INTLVL);
+#endif // #ifndef SPI_EDMA
     /*
      * Enable SPI communication
      */
@@ -232,16 +302,7 @@ spi_init (
 
     DEBUG_PRINT("Initializing spi...\n");
 
-    /*
-     * Initialize the EDMA3 instance.
-     */
-    edma3_init();
-
-    /*
-     * Initialize SPI w/ Interrupts.
-     */
-    spi_setup();
-
+#ifdef SPI_EDMA
     /*
      * Request EDMA3CC for Tx an Rx channels for SPI0.
      */
@@ -251,6 +312,25 @@ spi_init (
     /* Registering Callback Function for Tx and Rx. */
     edma3_set_callback(EDMA3_CHA_SPI0_TX, &callback);
     edma3_set_callback(EDMA3_CHA_SPI0_RX, &callback);
+#else // #ifdef SPI_EDMA
+    /*
+     * Register the ISR in the vector table
+     */
+    IntRegister(C674X_MASK_INT6, spi_isr);
+
+    /*
+     * Map system interrupt to the DSP maskable interrupt
+     */
+    IntEventMap(C674X_MASK_INT6, SYS_INT_SPI0_INT);
+
+    // Enable the DSP maskable interrupt
+    IntEnable(C674X_MASK_INT6);
+#endif // #ifdef SPI_EDMA
+
+    /*
+     * Initialize SPI w/ Interrupts.
+     */
+    spi_setup();
 
     init_done = 1;
 
@@ -272,7 +352,9 @@ spi_send_and_receive (
     unsigned int cs
     )
 {
+#ifdef SPI_EDMA
     int ret_val;
+#endif // #ifdef SPI_EDMA
 
     if (init_done == 0)
     {
@@ -303,13 +385,14 @@ spi_send_and_receive (
             break;
     }
 
+    DEBUG_PRINT("Sending and receiving spi data with cs: %d\n", cs);
+    DEBUG_PRINT("Transaction starting...\n");
+
+#ifdef SPI_EDMA
     /*
      * Writeback whatever is in cache to main memory.
      */
     CacheWB((unsigned int) data, len);
-
-    DEBUG_PRINT("Sending and receiving spi data with cs: %d\n", cs);
-    DEBUG_PRINT("Transaction starting...\n");
 
     /* Configure the PaRAM registers in EDMA for Transmission.*/
     ret_val = edma3_param_set_spi_tx(EDMA3_CHA_SPI0_TX, EDMA3_CHA_SPI0_TX, data, len);
@@ -324,22 +407,42 @@ spi_send_and_receive (
     {
         return ret_val;
     }
+#else // #ifdef SPI_EDMA
+    p_tx = data;
+    p_rx = data;
+
+   tx_len = len;
+   rx_len = len;
+#endif // #ifdef SPI_EDMA
+
     /*
      * Assert the CS pin.
      */
     SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
                 | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
 
+#ifdef SPI_EDMA
     /*
      * Enable the interrupts.
      */
     SPIIntEnable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
 
-
     /* Wait until both the flags are set to 1 in the callback function. */
-	while ((0 == tx_flag) || (0 == rx_flag));
+	while ((tx_flag == 0) || (rx_flag == 0));
 	tx_flag = 0;
 	rx_flag = 0;
+#else // #ifdef SPI_EDMA
+    /*
+     * Enable the interrupts.
+     */
+    SPIIntEnable(SPI_REG, (SPI_RECV_INT | SPI_TRANSMIT_INT));
+
+    /*
+     * Wait for flag to change (transaction to finish).
+     */
+    while (flag == 0);
+    flag = 0;
+#endif // #ifdef SPI_EDMA
 
     /*
      * Deasserts the CS pin. (Notice no CSHOLD flag)
