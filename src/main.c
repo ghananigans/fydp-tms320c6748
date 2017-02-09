@@ -12,6 +12,7 @@
 #include "timer_wrapper/timer_wrapper.h"
 #include "spi_wrapper/spi_wrapper.h"
 #include "dac_wrapper/dac_wrapper.h"
+#include "edma3_wrapper/edma3_wrapper.h"
 #include <stdbool.h>
 #include <time.h>
 #include <math.h>
@@ -24,7 +25,7 @@
 #define PI (3.14159265358979323846)
 #endif
 
-#define SAMPLING_FREQUENCY (50000)
+#define SAMPLING_FREQUENCY (10000)
 #define COS_FREQ           (5000)
 #define NUM_SAMPLES        (SAMPLING_FREQUENCY / COS_FREQ)
 #define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
@@ -67,6 +68,13 @@ main (
      */
     ret_val = init_interrupt();
     ASSERT(ret_val == INTERRUPT_OK, "Interrupt init failed! (%d)\n", ret_val);
+
+    /*
+     * Init system interrupts.
+     */
+    ret_val = edma3_init();
+    ASSERT(ret_val == EDMA3_OK, "EDMA3 init failed! (%d)\n", ret_val);
+
 
     /*
      * Init spi.
