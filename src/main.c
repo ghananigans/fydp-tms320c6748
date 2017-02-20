@@ -13,9 +13,11 @@
 #include "spi_wrapper/spi_wrapper.h"
 #include "dac_wrapper/dac_wrapper.h"
 #include "edma3_wrapper/edma3_wrapper.h"
+#include "mcasp/mcaspPlayBk.h"
 #include <stdbool.h>
 #include <time.h>
 #include <math.h>
+#include <stdint.h>
 
 
 #define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
@@ -88,117 +90,111 @@ main (
     ret_val = dac_init(1);
     ASSERT(ret_val == DAC_OK, "DAC init failed! (%d)\n", ret_val);
 
-    /*
-     * Try reading uart and printing it back.
-     */
-    /*uart_print("Enter some text : ");
-    uart_read(buffer, 50);
 
-    for (a = 0; a < 50; ++a)
-    {
-        DEBUG_PRINT("buffer[%d] = %d\n", a, buffer[a]);
-    }
-
-    uart_print("%s\n", buffer);*/
-
-    /*
-     * Init the timer.
-     */
     ret_val = timer_init(&timer_function, TIMER_MICROSECONDS);
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
-
-    /*
-     * Loop 10 times to see timer ticking 10 times.
-     */
-    /*
-    timer_start();
-    a = 0;
-    while (a < 10)
-    {
-        while (timer_flag == 0);
-        timer_flag = 0;
-
-        DEBUG_PRINT("TIMER TICKED %d!\n", a++);
-    }
-    timer_stop();
-    */
 
     // Power on dac channel
     ret_val = dac_power_up(CHANNEL_POWER);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
+   DEBUG_PRINT("about to do i2c pinmuxsetup.\n");
+
+    unsigned short parToSend;
+    unsigned short parToLink;
+
+    /* Set up pin mux for I2C module 0 */
+    I2CPinMuxSetup(0);
+    DEBUG_PRINT("about to do McASPPinMuxSetup.\n");
+    McASPPinMuxSetup();
+
+    DEBUG_PRINT("about to do PSCModuleControl.\n");
+    /* Power up the McASP module */
+    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_MCASP0, PSC_POWERDOMAIN_ALWAYS_ON,
+             PSC_MDCTL_NEXT_ENABLE);
+
+    /* Power up EDMA3CC_0 and EDMA3TC_0 */
+    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_CC0, PSC_POWERDOMAIN_ALWAYS_ON,
+             PSC_MDCTL_NEXT_ENABLE);
+    PSCModuleControl(SOC_PSC_0_REGS, HW_PSC_TC0, PSC_POWERDOMAIN_ALWAYS_ON,
+             PSC_MDCTL_NEXT_ENABLE);
+
+    DEBUG_PRINT("about to do IntDSPINTCInit.\n");
+    // Initialize the DSP interrupt controller
+    IntDSPINTCInit();
+
+    DEBUG_PRINT("about to do codec ifinit.\n");
+    /* Initialize the I2C 0 interface for the codec AIC31 */
+    I2CCodecIfInit(SOC_I2C_0_REGS, INT_CHANNEL_I2C, I2C_SLAVE_CODEC_AIC31);
+
+    DEBUG_PRINT("edma3initi.\n");
+    EDMA3Init(SOC_EDMA30CC_0_REGS, 0);
+    EDMA3IntSetup();
+
+    DEBUG_PRINT("about to do mcasperrorintsetup.\n");
+    McASPErrorIntSetup();
+
+    IntGlobalEnable();
+
+    DEBUG_PRINT("about to do EDMA3RequestChannel.\n");
+
     /*
-    // Channel to 0
-    ret_val = dac_update(CHANNEL, (uint16_t) 0);
-    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-    // Channel ~ MAX_VOLTAGE * (1/5)
-    ret_val = dac_update(CHANNEL, (uint16_t) 13000);
-    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-    // Channel ~ MAX_VOLTAGE * (2/5)
-    ret_val = dac_update(CHANNEL, (uint16_t) 26000);
-    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-    // Channel ~ MAX_VOLTAGE * (3/5)
-    ret_val = dac_update(CHANNEL, (uint16_t) 39000);
-    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-    // Channel ~ MAX_VOLTAGE * (4/5)
-    ret_val = dac_update(CHANNEL, (uint16_t) 52000);
-    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-    // Channel ~ MAX_VOLTAGE
-    ret_val = dac_update(CHANNEL, (uint16_t) 65000);
-    ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+    ** Request EDMA channels. Channel 0 is used for reception and
+    ** Channel 1 is used for transmission
     */
+    EDMA3RequestChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA,
+                        EDMA3_CHA_MCASP0_TX, EDMA3_CHA_MCASP0_TX, 0);
+    EDMA3RequestChannel(SOC_EDMA30CC_0_REGS, EDMA3_CHANNEL_TYPE_DMA,
+                        EDMA3_CHA_MCASP0_RX, EDMA3_CHA_MCASP0_RX, 0);
+
+    /* Initialize the DMA parameters */
+    I2SDMAParamInit();
+
+    /* Configure the Codec for I2S mode */
+    AIC31I2SConfigure();
+
+    /* Configure the McASP for I2S */
+    McASPI2SConfigure();
+
+    /* Activate the audio transmission and reception */
+    I2SDataTxRxActivate();
 
     /*
-     * Pre calculate samples for simple sinusoid output to dac.
-     */
-    x = 0;
-    for (i = 0; i < NUM_SAMPLES; ++i)
+    ** Looop forever. if a new buffer is received, the lastFullRxBuf will be
+    ** updated in the rx completion ISR. if it is not the lastSentTxBuf,
+    ** buffer is to be sent. This has to be mapped to proper paRAM set.
+    */
+    while(1)
     {
-        y = (cos(2 * COS_FREQ * PI * x) + 1) / 0.00007629394;
-        x += 1.0 / SAMPLING_FREQUENCY;
-        val[i] = (uint16_t) y;
-    }
-
-    i = 0;
-    timer_start();
-    while (1)
-    {
-        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
-        while (timer_flag == 0);
-        timer_flag = 0;
-
-        ret_val = dac_update(CHANNEL, val[i]);
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-        if (++i == NUM_SAMPLES)
+        if(lastFullRxBuf != lastSentTxBuf)
         {
-            i = 0;
+            /*
+            ** Start the transmission from the link paramset. The param set
+            ** 1 will be linked to param set at PAR_TX_START. So do not
+            ** update paRAM set1.
+            */
+            parToSend =  PAR_TX_START + (parOffTxToSend % NUM_PAR);
+            parOffTxToSend = (parOffTxToSend + 1) % NUM_PAR;
+            parToLink  = PAR_TX_START + parOffTxToSend;
+
+            lastSentTxBuf = (lastSentTxBuf + 1) % NUM_BUF;
+
+            /* Copy the buffer */
+            memcpy((void *)txBufPtr[lastSentTxBuf],
+                   (void *)rxBufPtr[lastFullRxBuf],
+                   AUDIO_BUF_SIZE);
+
+            /*
+            ** Send the buffer by setting the DMA params accordingly.
+            ** Here the buffer to send and number of samples are passed as
+            ** parameters. This is important, if only transmit section
+            ** is to be used.
+            */
+            BufferTxDMAActivate(lastSentTxBuf, NUM_SAMPLES_PER_AUDIO_BUF,
+                                (unsigned short)parToSend,
+                                (unsigned short)parToLink);
         }
     }
-    timer_stop();
-
-    /*
-     * Check how long it takes to do float operations
-     */
-    x = 3.3;
-    y = 3.5;
-    double z = 3.8;
-    time_t sec = time(NULL);
-    time_t sec2;
-    for (a = 0; a < 125000000; ++a)
-    {
-        z = ++x * y;
-
-    }
-    sec2 = time(NULL);
-
-    DEBUG_PRINT("TIME DIFF = %d\n", sec2 - sec);
-
     /*
      * Loop forever.
      */
