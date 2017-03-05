@@ -1,43 +1,15 @@
-/**
- * \file  mcaspPlayBk.c
+/*
+ * mcasp_wrapper.c
  *
- * \brief Sample application for McASP. This application loops back the input
- *        at LINE_IN of the EVM to the LINE_OUT of the EVM. 
+ * Contents rely heavily on C6748 StarterWare mcasp example.
+ *
+ *  Created on: Mar 5, 2017
+ *      Author: Ghanan Gowripalan
  */
 
-/*
-* Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/ 
-*
-*  Redistribution and use in source and binary forms, with or without 
-*  modification, are permitted provided that the following conditions 
-*  are met:
-*
-*    Redistributions of source code must retain the above copyright 
-*    notice, this list of conditions and the following disclaimer.
-*
-*    Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in the 
-*    documentation and/or other materials provided with the   
-*    distribution.
-*
-*    Neither the name of Texas Instruments Incorporated nor the names of
-*    its contributors may be used to endorse or promote products derived
-*    from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-*  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-*  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-*  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-*  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-*  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-*  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-#include "edma_event.h"
+#include "../config.h"
+#include "../util.h"
+#include "mcasp_wrapper.h"
 #include "interrupt.h"
 #include "soc_C6748.h"
 #include "hw_syscfg0_C6748.h"
@@ -45,10 +17,12 @@
 #include "codecif.h"
 #include "mcasp.h"
 #include "aic31.h"
-#include "edma.h"
 #include "psc.h"
-
 #include <string.h>
+#include "../edma3_wrapper/edma3_wrapper.h"
+#include <stdbool.h>
+#include "edma.h"
+#include "edma_event.h"
 
 /******************************************************************************
 **                      INTERNAL MACRO DEFINITIONS
@@ -127,25 +101,6 @@
 #define OPT_FIFO_WIDTH                        (0x02 << 8u)
 
 /******************************************************************************
-**                      INTERNAL FUNCTION PROTOTYPES
-******************************************************************************/
-static void McASPErrorIsr(void);
-static void McASPErrorIntSetup(void);
-static void AIC31I2SConfigure(void);
-static void McASPI2SConfigure(void);
-static void McASPTxDMAComplHandler(void);
-static void McASPRxDMAComplHandler(void);
-static void EDMA3CCComplIsr(void);
-static void I2SDataTxRxActivate(void);
-static void I2SDMAParamInit(void);
-static void ParamTxLoopJobSet(unsigned short parId);
-static void BufferTxDMAActivate(unsigned int txBuf, unsigned short numSamples,
-                                unsigned short parToUpdate, 
-                                unsigned short linkAddr);
-static void BufferRxDMAActivate(unsigned int rxBuf, unsigned short parId,
-                                unsigned short parLink);
-
-/******************************************************************************
 **                      INTERNAL VARIABLE DEFINITIONS
 ******************************************************************************/
 static unsigned char loopBuf[NUM_SAMPLES_LOOP_BUF * BYTES_PER_SAMPLE] = {0};
@@ -195,6 +150,8 @@ static volatile unsigned short parOffTxToSend = 0;
 ** The transmit buffer which was sent last.
 */
 static volatile unsigned int lastSentTxBuf = NUM_BUF - 1;
+
+static bool init_done = 0;
 
 /******************************************************************************
 **                      INTERNAL CONSTATNT DEFINITIONS
@@ -254,13 +211,15 @@ static struct EDMA3CCPaRAMEntry const rxDefaultPar =
            (unsigned short)1 /* cCnt */
        };
 
-/******************************************************************************
-**                          FUNCTION DEFINITIONS
-******************************************************************************/
+
 /*
 ** Assigns loop job for a parameter set
 */
-static void ParamTxLoopJobSet(unsigned short parId)
+static 
+void 
+ParamTxLoopJobSet (
+  unsigned short parId
+  )
 {
     EDMA3CCPaRAMEntry paramSet;
     
@@ -273,86 +232,122 @@ static void ParamTxLoopJobSet(unsigned short parId)
 }
 
 /*
-** Initializes the DMA parameters.
-** The RX basic paRAM set(channel) is 0 and TX basic paRAM set (channel) is 1.
-**
-** The RX paRAM set 0 will be initialized to receive data in the rx buffer 0.
-** The transfer completion interrupt will not be enabled for paRAM set 0;
-** paRAM set 0 will be linked to linked paRAM set starting (PAR_RX_START) of RX.
-** and further reception only happens via linked paRAM set. 
-** For example, if the PAR_RX_START value is 40, and the number of paRAMS is 2, 
-** reception paRAM set linking will be initialized as 0-->40-->41-->40
-**
-** The TX paRAM sets will be initialized to transmit from the loop buffer.
-** The size of the loop buffer can be configured.   
-** The transfer completion interrupt will not be enabled for paRAM set 1;
-** paRAM set 1 will be linked to linked paRAM set starting (PAR_TX_START) of TX.
-** All other paRAM sets will be linked to itself.
-** and further transmission only happens via linked paRAM set.
-** For example, if the PAR_RX_START value is 42, and the number of paRAMS is 2, 
-** So transmission paRAM set linking will be initialized as 1-->42-->42, 43->43. 
+** Error ISR for McASP
 */
-static void I2SDMAParamInit(void)
+static 
+void 
+mcasp_error_isr (
+	void
+	)
+{
+	IntEventClear(SYS_INT_MCASP0_INT);
+}
+
+/*
+** Activates the DMA transfer for a parameter set from the given buffer.
+*/
+static 
+void 
+BufferRxDMAActivate (
+	unsigned int rxBuf, 
+	unsigned short parId,
+    unsigned short parLink
+    )
 {
     EDMA3CCPaRAMEntry paramSet;
-    int idx; 
- 
-    /* Initialize the 0th paRAM set for receive */ 
+
+    /* Copy the default paramset */
     memcpy(&paramSet, &rxDefaultPar, SIZE_PARAMSET - 2);
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX, &paramSet);
+    /* Enable completion interrupt */
+    paramSet.opt |= RX_DMA_INT_ENABLE;
+    paramSet.destAddr =  rxBufPtr[rxBuf];
+    paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
+    paramSet.linkAddr = parLink * SIZE_PARAMSET ;
 
-    /* further paramsets, enable interrupt */
-    paramSet.opt |= RX_DMA_INT_ENABLE; 
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
+}
+
+/*
+** Activates the DMA transfer for a parameterset from the given buffer.
+*/
+static
+void 
+BufferTxDMAActivate (
+	unsigned int txBuf, 
+	unsigned short numSamples,
+    unsigned short parId, 
+    unsigned short linkPar
+    )
+{
+    EDMA3CCPaRAMEntry paramSet;
+
+    /* Copy the default paramset */
+    memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET - 2);
+    
+    /* Enable completion interrupt */
+    paramSet.opt |= TX_DMA_INT_ENABLE;
+    paramSet.srcAddr =  txBufPtr[txBuf];
+    paramSet.linkAddr = linkPar * SIZE_PARAMSET;  
+    paramSet.bCnt = numSamples;
+
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
+}
+
+/*
+** This function will be called once receive DMA is completed
+*/
+static 
+void 
+McASPRxDMAComplHandler (
+	unsigned int tcc_num,
+  unsigned int status
+	)
+{
+    unsigned short nxtParToUpdate;
+
+    /*
+    ** Update lastFullRxBuf to indicate a new buffer reception
+    ** is completed.
+    */
+    lastFullRxBuf = (lastFullRxBuf + 1) % NUM_BUF;
+    nxtParToUpdate =  PAR_RX_START + parOffRcvd;  
+    parOffRcvd = (parOffRcvd + 1) % NUM_PAR;
  
-    for(idx = 0 ; idx < NUM_PAR; idx++)
-    {
-        paramSet.destAddr = rxBufPtr[idx];
+    /*
+    ** Update the DMA parameters for the received buffer to receive
+    ** further data in proper buffer
+    */
+    BufferRxDMAActivate(nxtBufToRcv, nxtParToUpdate,
+                        PAR_RX_START + parOffRcvd);
+    
+    /* update the next buffer to receive data */ 
+    nxtBufToRcv = (nxtBufToRcv + 1) % NUM_BUF;
+}
 
-        paramSet.linkAddr = (PAR_RX_START + ((idx + 1) % NUM_PAR)) 
-                             * (SIZE_PARAMSET);        
+/*
+** This function will be called once transmit DMA is completed
+*/
+static 
+void 
+McASPTxDMAComplHandler (
+	unsigned int tcc_num,
+  unsigned int status
+	)
+{
+    ParamTxLoopJobSet((unsigned short)(PAR_TX_START + parOffSent));
 
-        paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
-
-        /* 
-        ** for the first linked paRAM set, start receiving the second
-        ** sample only since the first sample is already received in
-        ** rx buffer 0 itself.
-        */
-        if( 0 == idx)
-        {
-            paramSet.destAddr += BYTES_PER_SAMPLE;
-            paramSet.bCnt -= BYTES_PER_SAMPLE;
-        }
-
-        EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
-    } 
-
-    /* Initialize the required variables for reception */
-    nxtBufToRcv = idx % NUM_BUF;
-    lastFullRxBuf = NUM_BUF - 1;
-    parOffRcvd = 0;
-
-    /* Initialize the 1st paRAM set for transmit */ 
-    memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET);
-
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_TX, &paramSet);
-
-    /* rest of the params, enable loop job */
-    for(idx = 0 ; idx < NUM_PAR; idx++)
-    {
-        ParamTxLoopJobSet(PAR_TX_START + idx);
-    }
- 
-    /* Initialize the variables for transmit */
-    parOffSent = 0;
-    lastSentTxBuf = NUM_BUF - 1; 
+    parOffSent = (parOffSent + 1) % NUM_PAR;
 }
 
 /*
 ** Function to configure the codec for I2S mode
 */
-static void AIC31I2SConfigure(void)
+static 
+void 
+aic31_i2s_configure (
+	void
+	)
 {
     volatile unsigned int delay = 0xFFF;
 
@@ -371,7 +366,11 @@ static void AIC31I2SConfigure(void)
 /*
 ** Configures the McASP Transmit Section in I2S mode.
 */
-static void McASPI2SConfigure(void)
+static 
+void 
+mcasp_i2s_configure (
+	void
+	)
 {
     McASPRxReset(SOC_MCASP_0_CTRL_REGS);
     McASPTxReset(SOC_MCASP_0_CTRL_REGS);
@@ -444,44 +443,14 @@ static void McASPI2SConfigure(void)
 }
 
 /*
-** Sets up the interrupts for EDMA in AINTC
-*/
-static void EDMA3IntSetup(void)
-{
-#ifdef _TMS320C6X
-	IntRegister(C674X_MASK_INT5, EDMA3CCComplIsr);
-	IntEventMap(C674X_MASK_INT5, SYS_INT_EDMA3_0_CC0_INT1);
-	IntEnable(C674X_MASK_INT5);
-#else
-    IntRegister(SYS_INT_CCINT0, EDMA3CCComplIsr);
-    IntChannelSet(SYS_INT_CCINT0, INT_CHANNEL_EDMACC); 
-    IntSystemEnable(SYS_INT_CCINT0);
-#endif
-}
-
-/*
-** Sets up the error interrupts for McASP in AINTC
-*/
-static void McASPErrorIntSetup(void)
-{
-#ifdef _TMS320C6X
-	IntRegister(C674X_MASK_INT6, McASPErrorIsr);
-	IntEventMap(C674X_MASK_INT6, SYS_INT_MCASP0_INT);
-	IntEnable(C674X_MASK_INT6);
-#else
-    /* Register the error ISR for McASP */
-    IntRegister(SYS_INT_MCASPINT, McASPErrorIsr);
-
-    IntChannelSet(SYS_INT_MCASPINT, INT_CHANNEL_MCASP);
-    IntSystemEnable(SYS_INT_MCASPINT);
-#endif
-}
-
-/*
 ** Activates the data transmission/reception
 ** The DMA parameters shall be ready before calling this function.
 */
-static void I2SDataTxRxActivate(void)
+static 
+void 
+I2SDataTxRxActivate (
+	void
+	)
 {
     /* Start the clocks */
     McASPRxClkStart(SOC_MCASP_0_CTRL_REGS, MCASP_RX_CLK_EXTERNAL);
@@ -506,121 +475,200 @@ static void I2SDataTxRxActivate(void)
 }
 
 /*
-** Activates the DMA transfer for a parameterset from the given buffer.
+** Initializes the DMA parameters.
+** The RX basic paRAM set(channel) is 0 and TX basic paRAM set (channel) is 1.
+**
+** The RX paRAM set 0 will be initialized to receive data in the rx buffer 0.
+** The transfer completion interrupt will not be enabled for paRAM set 0;
+** paRAM set 0 will be linked to linked paRAM set starting (PAR_RX_START) of RX.
+** and further reception only happens via linked paRAM set. 
+** For example, if the PAR_RX_START value is 40, and the number of paRAMS is 2, 
+** reception paRAM set linking will be initialized as 0-->40-->41-->40
+**
+** The TX paRAM sets will be initialized to transmit from the loop buffer.
+** The size of the loop buffer can be configured.   
+** The transfer completion interrupt will not be enabled for paRAM set 1;
+** paRAM set 1 will be linked to linked paRAM set starting (PAR_TX_START) of TX.
+** All other paRAM sets will be linked to itself.
+** and further transmission only happens via linked paRAM set.
+** For example, if the PAR_RX_START value is 42, and the number of paRAMS is 2, 
+** So transmission paRAM set linking will be initialized as 1-->42-->42, 43->43. 
 */
-void BufferTxDMAActivate(unsigned int txBuf, unsigned short numSamples,
-                         unsigned short parId, unsigned short linkPar)
+static 
+void 
+I2SDMAParamInit (
+	void
+	)
 {
     EDMA3CCPaRAMEntry paramSet;
-
-    /* Copy the default paramset */
-    memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET - 2);
-    
-    /* Enable completion interrupt */
-    paramSet.opt |= TX_DMA_INT_ENABLE;
-    paramSet.srcAddr =  txBufPtr[txBuf];
-    paramSet.linkAddr = linkPar * SIZE_PARAMSET;  
-    paramSet.bCnt = numSamples;
-
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
-}
-
-/*
-** Activates the DMA transfer for a parameter set from the given buffer.
-*/
-static void BufferRxDMAActivate(unsigned int rxBuf, unsigned short parId,
-                                unsigned short parLink)
-{
-    EDMA3CCPaRAMEntry paramSet;
-
-    /* Copy the default paramset */
+    int idx; 
+ 
+    /* Initialize the 0th paRAM set for receive */ 
     memcpy(&paramSet, &rxDefaultPar, SIZE_PARAMSET - 2);
 
-    /* Enable completion interrupt */
-    paramSet.opt |= RX_DMA_INT_ENABLE;
-    paramSet.destAddr =  rxBufPtr[rxBuf];
-    paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
-    paramSet.linkAddr = parLink * SIZE_PARAMSET ;
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX, &paramSet);
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
-}
-
-/*
-** This function will be called once receive DMA is completed
-*/
-static void McASPRxDMAComplHandler(void)
-{
-    unsigned short nxtParToUpdate;
-
-    /*
-    ** Update lastFullRxBuf to indicate a new buffer reception
-    ** is completed.
-    */
-    lastFullRxBuf = (lastFullRxBuf + 1) % NUM_BUF;
-    nxtParToUpdate =  PAR_RX_START + parOffRcvd;  
-    parOffRcvd = (parOffRcvd + 1) % NUM_PAR;
+    /* further paramsets, enable interrupt */
+    paramSet.opt |= RX_DMA_INT_ENABLE; 
  
-    /*
-    ** Update the DMA parameters for the received buffer to receive
-    ** further data in proper buffer
+    for(idx = 0 ; idx < NUM_PAR; idx++)
+    {
+        paramSet.destAddr = rxBufPtr[idx];
+
+        paramSet.linkAddr = (PAR_RX_START + ((idx + 1) % NUM_PAR)) 
+                             * (SIZE_PARAMSET);        
+
+        paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
+
+        /* 
+        ** for the first linked paRAM set, start receiving the second
+        ** sample only since the first sample is already received in
+        ** rx buffer 0 itself.
+        */
+        if( 0 == idx)
+        {
+            paramSet.destAddr += BYTES_PER_SAMPLE;
+            paramSet.bCnt -= BYTES_PER_SAMPLE;
+        }
+
+        EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
+    } 
+
+    /* Initialize the required variables for reception */
+    nxtBufToRcv = idx % NUM_BUF;
+    lastFullRxBuf = NUM_BUF - 1;
+    parOffRcvd = 0;
+
+    /* Initialize the 1st paRAM set for transmit */ 
+    memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET);
+
+    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_TX, &paramSet);
+
+    /* rest of the params, enable loop job */
+    for(idx = 0 ; idx < NUM_PAR; idx++)
+    {
+        ParamTxLoopJobSet(PAR_TX_START + idx);
+    }
+ 
+    /* Initialize the variables for transmit */
+    parOffSent = 0;
+    lastSentTxBuf = NUM_BUF - 1; 
+}
+
+int
+mcasp_init (
+    void
+    )
+{
+	if (init_done)
+    {
+        DEBUG_PRINT("McASP is already initialized!\n");
+        return MCASP_ALREADY_INITIALIZED;
+    }
+
+    DEBUG_PRINT("Initializing McASP...\n");
+
+	/* Set up pin mux for I2C module 0 */
+	DEBUG_PRINT("Configuring pinmuxes\n");
+    I2CPinMuxSetup(0);
+    McASPPinMuxSetup();
+
+    /* Power up the McASP module */
+   	DEBUG_PRINT("Turning McASP ON\n");
+    PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_MCASP0, PSC_POWERDOMAIN_ALWAYS_ON,
+		     PSC_MDCTL_NEXT_ENABLE);
+
+    // EDMA3 should be initted
+
+    // Init Controller should be initted
+
+
+    /* Initialize the I2C 0 interface for the codec AIC31 */
+    DEBUG_PRINT("Initialize the I2C 0 interface for the codec AIC31\n");
+    I2CCodecIfInit(SOC_I2C_0_REGS, INT_CHANNEL_I2C, I2C_SLAVE_CODEC_AIC31);
+
+    //
+    // McASP Error Interrupt
+    //
+    DEBUG_PRINT("McASP Error Interrupt\n");
+    IntRegister(C674X_MASK_INT8, mcasp_error_isr);
+	IntEventMap(C674X_MASK_INT8, SYS_INT_MCASP0_INT);
+	IntEnable(C674X_MASK_INT8);
+
+	DEBUG_PRINT("Request edma3 channels\n");
+	edma3_request_channel(EDMA3_CHA_MCASP0_TX, EDMA3_CHA_MCASP0_TX);
+	edma3_request_channel(EDMA3_CHA_MCASP0_RX, EDMA3_CHA_MCASP0_RX);
+
+	/* Registering Callback Function for Tx and Rx. */
+	DEBUG_PRINT("Register callback function with edma3\n");
+    edma3_set_callback(EDMA3_CHA_MCASP0_TX, &McASPTxDMAComplHandler);
+    edma3_set_callback(EDMA3_CHA_MCASP0_RX, &McASPRxDMAComplHandler);
+
+	/* Initialize the DMA parameters */
+    I2SDMAParamInit();
+
+	/* Configure the Codec for I2S mode */
+	DEBUG_PRINT("Configure the codef for i2s mode\n");
+	aic31_i2s_configure();
+
+	/* Configure the McASP for I2S */
+	DEBUG_PRINT("Configure the McASP for i2s mode\n");
+	mcasp_i2s_configure();
+
+	/* Activate the audio transmission and reception */ 
+	DEBUG_PRINT("Activate Rx and Tx\n");
+	I2SDataTxRxActivate();
+
+	init_done = 1;
+
+    DEBUG_PRINT("Done initializing McASP!\n");
+
+    return MCASP_OK;
+}
+
+void 
+mcasp_loopback_test (
+	void
+	)
+{
+	unsigned short parToSend;
+    unsigned short parToLink;
+
+	DEBUG_PRINT("Loopback Test\n");
+	 /*
+    ** Looop forever. if a new buffer is received, the lastFullRxBuf will be 
+    ** updated in the rx completion ISR. if it is not the lastSentTxBuf, 
+    ** buffer is to be sent. This has to be mapped to proper paRAM set.
     */
-    BufferRxDMAActivate(nxtBufToRcv, nxtParToUpdate,
-                        PAR_RX_START + parOffRcvd);
-    
-    /* update the next buffer to receive data */ 
-    nxtBufToRcv = (nxtBufToRcv + 1) % NUM_BUF;
-}
+    while(1)
+    {
+        if(lastFullRxBuf != lastSentTxBuf)
+        {  
+            /*
+            ** Start the transmission from the link paramset. The param set 
+            ** 1 will be linked to param set at PAR_TX_START. So do not 
+            ** update paRAM set1.
+            */ 
+            parToSend =  PAR_TX_START + (parOffTxToSend % NUM_PAR);
+            parOffTxToSend = (parOffTxToSend + 1) % NUM_PAR;
+            parToLink  = PAR_TX_START + parOffTxToSend; 
+ 
+            lastSentTxBuf = (lastSentTxBuf + 1) % NUM_BUF;
 
-/*
-** This function will be called once transmit DMA is completed
-*/
-static void McASPTxDMAComplHandler(void)
-{
-    ParamTxLoopJobSet((unsigned short)(PAR_TX_START + parOffSent));
+            /* Copy the buffer */
+            memcpy((void *)txBufPtr[lastSentTxBuf],
+                   (void *)rxBufPtr[lastFullRxBuf],
+                   AUDIO_BUF_SIZE);
 
-    parOffSent = (parOffSent + 1) % NUM_PAR;
-}
-
-/*
-** EDMA transfer completion ISR
-*/
-static void EDMA3CCComplIsr(void) 
-{ 
-#ifdef _TMS320C6X
-	IntEventClear(SYS_INT_EDMA3_0_CC0_INT1);
-#else
-    IntSystemStatusClear(SYS_INT_CCINT0);
-#endif
-
-    /* Check if receive DMA completed */
-    if(EDMA3GetIntrStatus(SOC_EDMA30CC_0_REGS) & (1 << EDMA3_CHA_MCASP0_RX)) 
-    { 
-        /* Clear the interrupt status for the 0th channel */
-        EDMA3ClrIntr(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX); 
-        McASPRxDMAComplHandler();
-    }
-    
-    /* Check if transmit DMA completed */
-    if(EDMA3GetIntrStatus(SOC_EDMA30CC_0_REGS) & (1 << EDMA3_CHA_MCASP0_TX)) 
-    { 
-        /* Clear the interrupt status for the first channel */
-        EDMA3ClrIntr(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_TX); 
-        McASPTxDMAComplHandler();
+            /*
+            ** Send the buffer by setting the DMA params accordingly.
+            ** Here the buffer to send and number of samples are passed as
+            ** parameters. This is important, if only transmit section 
+            ** is to be used.
+            */
+            BufferTxDMAActivate(lastSentTxBuf, NUM_SAMPLES_PER_AUDIO_BUF,
+                                (unsigned short)parToSend,
+                                (unsigned short)parToLink);
+        }
     }
 }
-
-/*
-** Error ISR for McASP
-*/
-static void McASPErrorIsr(void)
-{
-#ifdef _TMS320C6X
-	IntEventClear(SYS_INT_MCASP0_INT);
-#else
-    IntSystemStatusClear(SYS_INT_MCASPINT);
-#endif
-
-    ; /* Perform any error handling here.*/
-}
-
-/***************************** End Of File ***********************************/

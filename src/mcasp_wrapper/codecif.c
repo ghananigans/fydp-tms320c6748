@@ -63,15 +63,23 @@ unsigned int savedBase;
 /******************************************************************************
 **                          FUNCTION DEFINITIONS
 *******************************************************************************/
+
+
 /*
 ** Sets up the I2C interrupt in the AINTC
 */
+static void test(void)
+{
+	IntEventClear(SYS_INT_I2C0_INT);
+	while(1){}
+}
+
 static void I2CCodecIntSetup(unsigned int sysIntNum, unsigned int channel)
 {
 #ifdef _TMS320C6X
-	IntRegister(C674X_MASK_INT4, I2CCodecIsr);
-	IntEventMap(C674X_MASK_INT4, sysIntNum);
-	IntEnable(C674X_MASK_INT4);
+	IntRegister(C674X_MASK_INT7, &I2CCodecIsr);
+	IntEventMap(C674X_MASK_INT7, SYS_INT_I2C0_INT);
+	IntEnable(C674X_MASK_INT7);
 #else
     /* Register the ISR in the Interrupt Vector Table.*/
     IntRegister(sysIntNum, I2CCodecIsr);
@@ -178,31 +186,15 @@ void I2CCodecIsr(void)
     unsigned int intCode = 0;
     unsigned int sysIntNum = 0;
 
-    /* Get interrupt vector code */
+    //IntEventClear(SYS_INT_I2C0_INT);
+
+    //Get interrupt vector code
     intCode = I2CInterruptVectorGet(savedBase);
-
-    if(SOC_I2C_0_REGS == savedBase) 
-    {
-#ifdef _TMS320C6X
-    	sysIntNum = SYS_INT_I2C0_INT;
-#else
-         sysIntNum = SYS_INT_I2CINT0;
-#endif
-    }
-
-    else
-    {
-         intCode = 0;
-    }
 
     while(intCode!=0)
     {
-         /* Clear status of interrupt */
-#ifdef _TMS320C6X
-    	IntEventClear(sysIntNum);
-#else
-        IntSystemStatusClear(sysIntNum);
-#endif
+         //Clear status of interrupt
+    	IntEventClear(SYS_INT_I2C0_INT);
 
          if (intCode == I2C_INTCODE_TX_READY)
          {
@@ -218,7 +210,7 @@ void I2CCodecIsr(void)
 
          if (intCode == I2C_INTCODE_STOP)
          {
-              /* Disable transmit data ready and receive data read interupt */
+              // Disable transmit data ready and receive data read interupt
               I2CMasterIntDisableEx(savedBase, I2C_INT_TRANSMIT_READY
                                                | I2C_INT_DATA_READY);
               txCompFlag = 0;
