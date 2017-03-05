@@ -37,7 +37,7 @@
 #define WORD_SIZE                             (16u)
 
 /* Sampling Rate which will be used by both transmit and receive sections */
-#define SAMPLING_RATE                         (8000u)
+#define SAMPLING_RATE                         (16000u)
 
 /* Number of channels, L & R */
 #define NUM_I2S_CHANNELS                      (2u) 
@@ -568,6 +568,12 @@ mcasp_init (
 
     DEBUG_PRINT("Initializing McASP...\n");
 
+    if (AUDIO_BUF_SIZE != 4)
+    {
+        DEBUG_PRINT("Unrecognized AUDIO_BUF_SIZE\n");
+        return MCASP_INTERNAL_FAILURE_UNRECOGNIZED_AUDIO_BUF_SIZE_VALUE;
+    }
+
 	/* Set up pin mux for I2C module 0 */
 	DEBUG_PRINT("Configuring pinmuxes\n");
     I2CPinMuxSetup(0);
@@ -623,6 +629,16 @@ mcasp_init (
 
     DEBUG_PRINT("Done initializing McASP!\n");
 
+    return MCASP_OK;
+}
+
+int
+mcasp_latest_rx_data (
+    uint16_t * ptr
+    )
+{
+    memcpy((void *) ptr, (void *) rxBufPtr[lastFullRxBuf], (size_t) AUDIO_BUF_SIZE);
+    //ptr[0] = ((unsigned short *) rxBufPtr[lastFullRxBuf])[0];
     return MCASP_OK;
 }
 

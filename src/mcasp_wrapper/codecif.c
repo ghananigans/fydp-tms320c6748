@@ -68,12 +68,6 @@ unsigned int savedBase;
 /*
 ** Sets up the I2C interrupt in the AINTC
 */
-static void test(void)
-{
-	IntEventClear(SYS_INT_I2C0_INT);
-	while(1){}
-}
-
 static void I2CCodecIntSetup(unsigned int sysIntNum, unsigned int channel)
 {
 #ifdef _TMS320C6X
@@ -184,7 +178,6 @@ static void I2CCodecRcvBlocking(unsigned int baseAddr, unsigned int dataCnt)
 void I2CCodecIsr(void)
 {
     unsigned int intCode = 0;
-    unsigned int sysIntNum = 0;
 
     //IntEventClear(SYS_INT_I2C0_INT);
 

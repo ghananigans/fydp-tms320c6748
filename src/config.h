@@ -17,6 +17,6 @@
 /*
  * Uncomment the macro definition below to disable debug output.
  */
-#define DEBUG_PRINT_ENABLED
+//#define DEBUG_PRINT_ENABLED
 
 #endif /* CONFIG_H_ */

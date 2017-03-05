@@ -20,7 +20,6 @@
 #include <math.h>
 #include <stdint.h>
 
-
 #define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
 #define CHANNEL DAC_ADDRESS_CHANNEL_7
 
@@ -28,14 +27,12 @@
 #define PI (3.14159265358979323846)
 #endif
 
-#define SAMPLING_FREQUENCY (10000)
-#define COS_FREQ           (5000)
-#define NUM_SAMPLES        (SAMPLING_FREQUENCY / COS_FREQ)
+#define SAMPLING_FREQUENCY (8000)
 #define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
 
 static bool volatile timer_flag = 0;
 
-static inline
+static
 void
 timer_function (
     void
@@ -49,13 +46,8 @@ main (
     void
     )
 {
-    int a;
     int ret_val;
-    char buffer[50];
-    double x;
-    double y;
-    uint16_t val[NUM_SAMPLES];
-    int i;
+    uint16_t mic_data[2];
 
     /*
      * Init system interrupts.
@@ -111,13 +103,29 @@ main (
     /*
      * Loop back test for McASP
      */
-    mcasp_loopback_test();
+    //mcasp_loopback_test();
+
+    timer_start();
+    while (1)
+    {
+        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+        while (timer_flag == 0);
+        timer_flag = 0;
+
+        ret_val = mcasp_latest_rx_data((uint16_t *) &mic_data);
+        ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
+
+        ret_val = dac_update(CHANNEL, mic_data[0] >> 3);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+    }
+
+    //timer_stop();
 
     /*
      * Loop forever.
      */
-    DEBUG_PRINT("Looping forever...\n");
-    while (1);
+    //DEBUG_PRINT("Looping forever...\n");
+    //while (1);
 
     return 0;
 }
