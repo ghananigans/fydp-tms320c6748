@@ -37,13 +37,13 @@
 #define WORD_SIZE                             (16u)
 
 /* Sampling Rate which will be used by both transmit and receive sections */
-#define SAMPLING_RATE                         (48000u)
+#define SAMPLING_RATE                         (8000u)
 
 /* Number of channels, L & R */
 #define NUM_I2S_CHANNELS                      (2u) 
 
 /* Number of samples to be used per audio buffer */
-#define NUM_SAMPLES_PER_AUDIO_BUF             (2000u)
+#define NUM_SAMPLES_PER_AUDIO_BUF             (1u)
 
 /* Number of buffers used per tx/rx */
 #define NUM_BUF                               (3u)
