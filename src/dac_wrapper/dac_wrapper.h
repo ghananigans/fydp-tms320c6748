@@ -67,4 +67,14 @@ dac_update (
     uint16_t data
     );
 
+int
+dac_internal_reference_power_down (
+    void
+    );
+
+int
+dac_internal_reference_power_up (
+    void
+    );
+
 #endif /* DAC_WRAPPER_H_ */
