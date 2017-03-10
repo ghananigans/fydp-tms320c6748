@@ -18,7 +18,7 @@
  * And be blocking, instead of using the EDMA and be asynchronous.
  * Comment this out if it is too slow.
  */
-#define SPI_EDMA
+//#define SPI_EDMA
 
 //
 // Comment this out if you want the DAC to use it's own calculated voltage
@@ -50,6 +50,6 @@
 /*
  * Uncomment the macro definition below to disable debug output.
  */
-//#define DEBUG_PRINT_ENABLED
+#define DEBUG_PRINT_ENABLED
 
 #endif /* CONFIG_H_ */

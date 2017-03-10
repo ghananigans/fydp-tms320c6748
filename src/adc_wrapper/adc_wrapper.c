@@ -18,18 +18,18 @@ static unsigned int spi_cs = 0;
 typedef union _adc_command_t
 {
     struct {
-        uint32_t dont_care : 28;
+        uint16_t dont_care  : 13;
         uint8_t msb_first  : 1; // if 1, msb first; else lsb first
         uint8_t odd_signn  : 1; // channel select if single eded, or polarity for differntial mode
         uint8_t sgl_diffn  : 1; // sigle ended or differentla mode (SIF/!DIFF; 1 for single; 0 for diff)
         uint8_t start      : 1;
+        uint16_t zeroes     : 15;
     } request;
 
 	struct {
-        uint16_t done_care_l : 15;
         uint16_t data        : 12;
         uint8_t null_bit     : 1;
-        uint8_t dont_care_m  : 4;
+        uint32_t dont_care   : 19;
     } response;
 
     uint32_t as_uint32t;
@@ -99,6 +99,7 @@ adc_read (
     adc_command_t command;
     int ret_val;
 
+    command.request.zeroes = 0;
     command.request.start = 1;
     command.request.sgl_diffn = 1;
     command.request.odd_signn = 0;

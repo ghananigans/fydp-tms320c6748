@@ -129,7 +129,7 @@ main (
         ret_val = adc_read(&data);
         ASSERT(ret_val == ADC_OK, "ADC read! (%d)\n", ret_val);
 
-        DEBUG_PRINT("Data read: %u\n", data);
+        NORMAL_PRINT("Data read: %u\n", data);
     }
     /*
      * Init Timer
