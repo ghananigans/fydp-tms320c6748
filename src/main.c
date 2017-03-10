@@ -12,6 +12,7 @@
 #include "timer_wrapper/timer_wrapper.h"
 #include "spi_wrapper/spi_wrapper.h"
 #include "dac_wrapper/dac_wrapper.h"
+#include "adc_wrapper/adc_wrapper.h"
 #include "edma3_wrapper/edma3_wrapper.h"
 #include "mcasp_wrapper/mcasp_wrapper.h"
 #include <stdbool.h>
@@ -91,6 +92,7 @@ main (
     ret_val = edma3_init();
     ASSERT(ret_val == EDMA3_OK, "EDMA3 init failed! (%d)\n", ret_val);
 
+#if 0
     /*
      * Init McASP
      */
@@ -103,7 +105,7 @@ main (
      */
     mcasp_loopback_test();
 #endif
-
+#endif
     /*
      * Init spi.
      */
@@ -116,6 +118,19 @@ main (
     ret_val = dac_init(1);
     ASSERT(ret_val == DAC_OK, "DAC init failed! (%d)\n", ret_val);
 
+    /*
+     * Init adc.
+     */
+    ret_val = adc_init(0);
+    ASSERT(ret_val == ADC_OK, "ADC init failed! (%d)\n", ret_val);
+
+    while (1) {
+        uint16_t data;
+        ret_val = adc_read(&data);
+        ASSERT(ret_val == ADC_OK, "ADC read! (%d)\n", ret_val);
+
+        DEBUG_PRINT("Data read: %u\n", data);
+    }
     /*
      * Init Timer
      */
