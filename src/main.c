@@ -61,7 +61,7 @@ main (
     )
 {
     int ret_val;
-    int16_t mic_data[2];
+    uint16_t mic_data[2];
     int a;
 	char buffer[50];
 	double x;
@@ -131,6 +131,11 @@ main (
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 #endif // #DAC_DO_NOT_USE_INTERNAL_REFERENCE
 
+    //ret_val = dac_update(CHANNEL, (uint16_t) 52628);
+    //ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+    //NORMAL_PRINT("DONE\n");
+    //while (1);
 #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
     /*
 	 * Pre calculate samples for simple sinusoid output to dac.
@@ -147,7 +152,7 @@ main (
 
 #if defined(SINGLE_TONE_SIGNAL_THROUGH_DAC) || defined(MIC_TO_DAC)
 	i = 0;
-    //timer_start();
+    timer_start();
     while (1)
     {
 #if 0
@@ -191,7 +196,7 @@ main (
         //
         // This adds a Vref/2 DC offset
         //
-        ret_val = dac_update(CHANNEL, ((uint16_t) (((int)mic_data[0]) + 0x8000)));
+        ret_val = dac_update(CHANNEL, (mic_data[0] + 0x8000));
 
         //
         // This is just straight data copy from mcasp registers to dac

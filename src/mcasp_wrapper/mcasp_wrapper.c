@@ -228,7 +228,7 @@ ParamTxLoopJobSet (
     /* link the paRAM to itself */
     paramSet.linkAddr = parId * SIZE_PARAMSET;
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
+    //EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
 }
 
 /*
@@ -265,7 +265,7 @@ BufferRxDMAActivate (
     paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
     paramSet.linkAddr = parLink * SIZE_PARAMSET ;
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
+    //EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
 }
 
 /*
@@ -291,7 +291,7 @@ BufferTxDMAActivate (
     paramSet.linkAddr = linkPar * SIZE_PARAMSET;  
     paramSet.bCnt = numSamples;
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
+    //EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
 }
 
 /*
@@ -459,7 +459,7 @@ I2SDataTxRxActivate (
     /* Enable EDMA for the transfer */
     EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX,
                         EDMA3_TRIG_MODE_EVENT);
-    EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, 
+    EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS,
                         EDMA3_CHA_MCASP0_TX, EDMA3_TRIG_MODE_EVENT);
 
     /* Activate the  serializers */
@@ -506,7 +506,7 @@ I2SDMAParamInit (
     /* Initialize the 0th paRAM set for receive */ 
     memcpy(&paramSet, &rxDefaultPar, SIZE_PARAMSET - 2);
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX, &paramSet);
+    //EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX, &paramSet);
 
     /* further paramsets, enable interrupt */
     paramSet.opt |= RX_DMA_INT_ENABLE; 
@@ -531,7 +531,7 @@ I2SDMAParamInit (
             paramSet.bCnt -= BYTES_PER_SAMPLE;
         }
 
-        EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
+        //EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
     } 
 
     /* Initialize the required variables for reception */
@@ -542,7 +542,7 @@ I2SDMAParamInit (
     /* Initialize the 1st paRAM set for transmit */ 
     memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET);
 
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_TX, &paramSet);
+    //EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_TX, &paramSet);
 
     /* rest of the params, enable loop job */
     for(idx = 0 ; idx < NUM_PAR; idx++)
@@ -602,13 +602,13 @@ mcasp_init (
 	IntEnable(C674X_MASK_INT8);
 
 	DEBUG_PRINT("Request edma3 channels\n");
-	edma3_request_channel(EDMA3_CHA_MCASP0_TX, EDMA3_CHA_MCASP0_TX);
-	edma3_request_channel(EDMA3_CHA_MCASP0_RX, EDMA3_CHA_MCASP0_RX);
+	//edma3_request_channel(EDMA3_CHA_MCASP0_TX, EDMA3_CHA_MCASP0_TX);
+	//edma3_request_channel(EDMA3_CHA_MCASP0_RX, EDMA3_CHA_MCASP0_RX);
 
 	/* Registering Callback Function for Tx and Rx. */
 	DEBUG_PRINT("Register callback function with edma3\n");
-    edma3_set_callback(EDMA3_CHA_MCASP0_TX, &McASPTxDMAComplHandler);
-    edma3_set_callback(EDMA3_CHA_MCASP0_RX, &McASPRxDMAComplHandler);
+    //edma3_set_callback(EDMA3_CHA_MCASP0_TX, &McASPTxDMAComplHandler);
+    //edma3_set_callback(EDMA3_CHA_MCASP0_RX, &McASPRxDMAComplHandler);
 
 	/* Initialize the DMA parameters */
     I2SDMAParamInit();
