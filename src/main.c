@@ -126,8 +126,10 @@ main (
     ret_val = dac_power_up(CHANNEL_POWER);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
+#ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
     ret_val = dac_internal_reference_power_down();
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
+#endif // #DAC_DO_NOT_USE_INTERNAL_REFERENCE
 
 #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
     /*
