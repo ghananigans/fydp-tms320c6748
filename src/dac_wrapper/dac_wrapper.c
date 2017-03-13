@@ -182,7 +182,7 @@ dac_internal_reference_power (
     command.internal_reference_power.control = DCC_INTERNAL_REFERENCE_POWER;
     command.internal_reference_power.zero = 0;
 
-    DEBUG_PRINT("Sending internal power related command to dac with flag [%d]\n", command.power.flag);
+    DEBUG_PRINT("Sending internal power related command to dac with flag [%d]\n", command.internal_reference_power.flag);
 
     return dac_command_send(&command);
 }
