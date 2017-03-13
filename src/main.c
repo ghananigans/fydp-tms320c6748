@@ -240,22 +240,22 @@ play_mic_to_dac (
 static console_command_t const commands[NUM_COMMANDS] = {
     {
         (char *) "test",
-        (char *) "Command to simply test the console command api.",
+        (char *) "Command to simply test the console command api.\n        Usage: test\n",
         (int (*)(char **, unsigned int)) &test_command
     },
     {
         (char *) "play-single-tone",
-        (char *) "Command to play a single tone.",
+        (char *) "Command to play a single tone.\n        Usage: play-single-tone <number of seconds>\n",
         (int (*)(char **, unsigned int)) &play_single_tone
     },
 	{
         (char *) "print-mic-data",
-        (char *) "Command to see mic data in binary and decimal.",
+        (char *) "Command to see mic data in binary and decimal.\n        Usage: print-mic-data <number of samples>\n",
         (int (*)(char **, unsigned int)) &print_mic_data
     },
     {
         (char *) "play-mic-to-dac",
-        (char *) "Output mic data through the DAC.",
+        (char *) "Output mic data through the DAC.\n        Usage: play-mic-to-dac <number of seconds>\n",
         (int (*)(char **, unsigned int)) &play_mic_to_dac
     },
 };
