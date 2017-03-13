@@ -35,18 +35,6 @@
 // (Comment it out to make it undefined).
 //#define MCASP_LOOPBACK_TEST
 
-// The below two macros are when you want to test the DAC.
-// This one below is to generate a single tone signal through dac.
-// The frequency of the tone can be modified in main.c at line 40.
-// The MACRO is COS_FREQ
-//#define SINGLE_TONE_SIGNAL_THROUGH_DAC
-
-// This one below is to output mic input data from the codec out the
-// dac interface. If the SINGLE_TONE_SIGNAL_THROUGH_DAC is defined,
-// This macro will not take any affect. so make sure the
-// SINGLE_TONE_SIGNAL_THROUGH_DAC is undefined (comment it out).
-#define MIC_TO_DAC
-
 /*
  * Uncomment the macro definition below to disable debug output.
  */

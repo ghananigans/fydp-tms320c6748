@@ -58,21 +58,156 @@ timer_function (
 static
 int
 test_command (
-    void * ptr
+    char ** params,
+    unsigned int num_params
     )
 {
+    int i;
+
     NORMAL_PRINT("Testing this command\n");
+    NORMAL_PRINT("    Number of params: %d\n", num_params);
+
+    for (i = 0; i < num_params; ++i)
+    {
+        NORMAL_PRINT("    Param #%d: %s\n", i, params[i]);
+    }
 
     return 0;
 }
 
-#define NUM_COMMANDS (1)
-static console_command_t const commands[1] = {
+static
+int
+play_single_tone (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    int ret_val;
+    int i;
+    double x;
+    double y;
+    uint16_t val[NUM_SAMPLES];
+
+    /*
+     * Pre calculate samples for simple sinusoid output to dac.
+     */
+    x = 0;
+    for (i = 0; i < NUM_SAMPLES; ++i)
+    {
+        y = (cos(2 * COS_FREQ * PI * x) + 1) * 32767;
+        x += 1.0 / SAMPLING_FREQUENCY;
+        val[i] = (uint16_t) y;
+    }
+
+    timer_start();
+    while (1)
+    {
+        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+        while (timer_flag == 0);
+        timer_flag = 0;
+
+        ret_val = dac_update(CHANNEL, val[i]);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        if (++i == NUM_SAMPLES)
+        {
+            i = 0;
+        }
+    }
+    timer_stop();
+
+    return 0;
+}
+
+static
+int
+print_mic_data (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    int ret_val;
+    int i;
+    uint32_t mic_data[2];
+
+    while (1)
+    {
+        //
+        // See mic data as binary and shifted
+        //
+        char s0[33] = "00000000000000000000000000000000";
+        char s1[33] = "00000000000000000000000000000000";
+
+        ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
+        ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
+
+        for (i = 0; i < 32; ++i)
+        {
+            if (mic_data[0] & (0x1 << i))
+            {
+                s0[31 - i] = '1';
+            }
+
+            if (mic_data[1] & (0x1 << i))
+            {
+                s1[31 - i] = '1';
+            }
+        }
+
+        NORMAL_PRINT("0: %s %d %d\n", s0, (int16_t)mic_data[0], (mic_data[0] + 32767) & 0xFFFF);
+        NORMAL_PRINT("1: %s %d %d\n", s1, (int16_t)mic_data[1], (mic_data[1] + 32767) & 0xFFFF);
+    }
+}
+
+static
+int
+play_mic_to_dac (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    int ret_val;
+    uint32_t mic_data[2];
+
+    timer_start();
+    while (1)
+    {
+        ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
+        ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
+
+        //
+        // This adds a Vref/2 DC offset
+        //
+        ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF));
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+    }
+    timer_stop();
+
+    return 0;
+}
+
+#define NUM_COMMANDS (4)
+static console_command_t const commands[NUM_COMMANDS] = {
     {
         (char *) "test",
         (char *) "Command to simply test the console command api.",
-        (int (*)(void *)) &test_command
-    }
+        (int (*)(char **, unsigned int)) &test_command
+    },
+    {
+        (char *) "play-single-tone",
+        (char *) "Command to play a single tone.",
+        (int (*)(char **, unsigned int)) &play_single_tone
+    },
+	{
+        (char *) "print-mic-data",
+        (char *) "Command to see mic data in binary and decimal.",
+        (int (*)(char **, unsigned int)) &print_mic_data
+    },
+    {
+        (char *) "play-mic-to-dac",
+        (char *) "Output mic data through the DAC.",
+        (int (*)(char **, unsigned int)) &play_mic_to_dac
+    },
 };
 
 int
@@ -86,7 +221,6 @@ main (
     char buffer[50];
     double x;
     double y;
-    uint16_t val[NUM_SAMPLES];
     int i;
     int j;
 
@@ -158,80 +292,10 @@ main (
     ret_val = console_commands_init((console_command_t *) &commands, NUM_COMMANDS);
     ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands init failed! (%d)\n", ret_val);
 
-    console_commands_run();
-
-#ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
     /*
-     * Pre calculate samples for simple sinusoid output to dac.
+     * Do whatever commands tell us to do.
      */
-    x = 0;
-    for (i = 0; i < NUM_SAMPLES; ++i)
-    {
-        y = (cos(2 * COS_FREQ * PI * x) + 1) * 32767;
-        x += 1.0 / SAMPLING_FREQUENCY;
-        val[i] = (uint16_t) y;
-    }
-#endif // #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
-
-#if defined(SINGLE_TONE_SIGNAL_THROUGH_DAC) || defined(MIC_TO_DAC)
-    i = 0;
-    timer_start();
-    while (1)
-    {
-#if 0
-        //
-        // See mic data as binary and shifted
-        //
-        char s0[33] = "00000000000000000000000000000000";
-        char s1[33] = "00000000000000000000000000000000";
-
-        ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
-        ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
-
-        for (j = 0; j < 32; ++j)
-        {
-            if (mic_data[0] & (0x1 << j))
-            {
-                s0[31 - j] = '1';
-            }
-
-            if (mic_data[1] & (0x1 << j))
-            {
-                s1[31 - i] = '1';
-            }
-        }
-
-        NORMAL_PRINT("0: %s %d %d\n", s0, (int16_t)mic_data[0], (mic_data[0] + 32767) & 0xFFFF);
-        NORMAL_PRINT("1: %s %d %d\n", s1, (int16_t)mic_data[1], (mic_data[1] + 32767) & 0xFFFF);
-#endif // #if 0
-
-#ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
-        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
-        while (timer_flag == 0);
-        timer_flag = 0;
-
-        ret_val = dac_update(CHANNEL, val[i]);
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-        if (++i == NUM_SAMPLES)
-        {
-            i = 0;
-        }
-#endif // #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
-
-#if defined(MIC_TO_DAC) && !defined(SINGLE_TONE_SIGNAL_THROUGH_DAC)
-        ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
-        ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
-
-        //
-        // This adds a Vref/2 DC offset
-        //
-        ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF));
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-#endif MIC_TO_DAC
-    }
-    //timer_stop();
-#endif
+    console_commands_run();
 
     /*
      * Loop forever.

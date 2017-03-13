@@ -18,7 +18,10 @@ typedef struct _console_command_t
 {
     char const * const cmd;
     char const * const description;
-    int (* const func)(void *);
+    int (* const func) (
+        char ** params,
+        unsigned int num_params
+        );
 } console_command_t;
 
 int

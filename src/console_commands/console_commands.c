@@ -13,6 +13,8 @@
 #define HELP_COMMAND_CMD ("help")
 #define HELP_COMMAND_DESCRIPTION ("Print all commands")
 #define BUFFER_SIZE (101)
+#define TOKEN_DELIMITER (" ")
+#define MAX_PARAMS (10)
 
 static bool init_done = 0;
 
@@ -64,7 +66,10 @@ console_commands_run (
     )
 {
     int i;
+    int j;
     char buffer[BUFFER_SIZE];
+    char * cmd;
+    char * params[MAX_PARAMS];
 
     while (1)
     {
@@ -72,18 +77,34 @@ console_commands_run (
         NORMAL_READ((char *) &buffer, BUFFER_SIZE);
         NORMAL_PRINT("\n");
 
-        if (strcmp(buffer, HELP_COMMAND_CMD) == 0)
+        cmd = strtok(buffer, TOKEN_DELIMITER);
+
+        if (strcmp(cmd, HELP_COMMAND_CMD) == 0)
         {
             console_commands_print_all();
         }
         else
         {
-
             for (i = 0; i < num_all_commands; ++i)
             {
-                if (strcmp(buffer, all_commands[i].cmd) == 0)
+                if (strcmp(cmd, all_commands[i].cmd) == 0)
                 {
-                    all_commands[i].func(0);
+                    //
+                    // Get all params
+                    //
+                    for (j = 0; j < MAX_PARAMS; ++j)
+                    {
+                        params[j] = strtok(0, TOKEN_DELIMITER);
+
+                        if (params[j] == 0)
+                        {
+                            // No more tokens
+                            break;
+                        }
+                    }
+
+                    all_commands[i].func((char **) &params, j);
+
                     break;
                 }
             }
