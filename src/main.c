@@ -14,12 +14,12 @@
 #include "dac_wrapper/dac_wrapper.h"
 #include "edma3_wrapper/edma3_wrapper.h"
 #include "mcasp_wrapper/mcasp_wrapper.h"
+#include "console_commands/console_commands.h"
 #include <stdbool.h>
 #include <time.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "soc_C6748.h"
 
 #define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
 #define CHANNEL DAC_ADDRESS_CHANNEL_7
@@ -54,6 +54,26 @@ timer_function (
 {
     timer_flag = 1;
 }
+
+static
+int
+test_command (
+    void * ptr
+    )
+{
+    NORMAL_PRINT("Testing this command\n");
+
+    return 0;
+}
+
+#define NUM_COMMANDS (1)
+static console_command_t const commands[1] = {
+    {
+        (char *) "test",
+        (char *) "Command to simply test the console command api.",
+        (int (*)(void *)) &test_command
+    }
+};
 
 int
 main (
@@ -131,6 +151,14 @@ main (
     ret_val = dac_internal_reference_power_down();
     ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
 #endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
+
+    /*
+     * Init console command
+     */
+    ret_val = console_commands_init((console_command_t *) &commands, NUM_COMMANDS);
+    ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands init failed! (%d)\n", ret_val);
+
+    console_commands_run();
 
 #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
     /*
