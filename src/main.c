@@ -84,6 +84,9 @@ play_single_tone (
 {
     int ret_val;
     int i;
+    unsigned int counter;
+    unsigned int max_seconds;
+    unsigned int seconds;
     double x;
     double y;
     uint16_t val[NUM_SAMPLES];
@@ -99,8 +102,17 @@ play_single_tone (
         val[i] = (uint16_t) y;
     }
 
+    //
+    // Max number of seconds is done by first param
+    //
+    max_seconds = atoi(params[0]);
+    counter = 0;
+    seconds = 0;
+
+    DEBUG_PRINT("Playing single tone for %d seconds!\n", max_seconds);
+
     timer_start();
-    while (1)
+    while (seconds < max_seconds)
     {
         ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
         while (timer_flag == 0);
@@ -112,6 +124,12 @@ play_single_tone (
         if (++i == NUM_SAMPLES)
         {
             i = 0;
+        }
+
+        if (++counter == SAMPLING_FREQUENCY)
+        {
+            ++seconds;
+            counter = 0;
         }
     }
     timer_stop();
@@ -128,9 +146,19 @@ print_mic_data (
 {
     int ret_val;
     int i;
+    unsigned int counter;
+    unsigned int max_count;
     uint32_t mic_data[2];
 
-    while (1)
+    //
+    // Max number of counds is done by first param
+    //
+    max_count = atoi(params[0]);
+    counter = 0;
+
+    DEBUG_PRINT("Printing mic to data for %d iterations!\n", max_count);
+
+    while (counter++ < max_count)
     {
         //
         // See mic data as binary and shifted
@@ -168,10 +196,26 @@ play_mic_to_dac (
 {
     int ret_val;
     uint32_t mic_data[2];
+    unsigned int counter;
+    unsigned int max_seconds;
+    unsigned int seconds;
+
+    //
+    // Max number of seconds is done by first param
+    //
+    max_seconds = atoi(params[0]);
+    counter = 0;
+    seconds = 0;
+
+    DEBUG_PRINT("Playing mic to data for %d seconds!\n", max_seconds);
 
     timer_start();
-    while (1)
+    while (seconds < max_seconds)
     {
+        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+        while (timer_flag == 0);
+        timer_flag = 0;
+
         ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
         ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
 
@@ -180,6 +224,12 @@ play_mic_to_dac (
         //
         ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF));
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        if (++counter == SAMPLING_FREQUENCY)
+        {
+            ++seconds;
+            counter = 0;
+        }
     }
     timer_stop();
 
@@ -237,7 +287,7 @@ main (
     ret_val = uart_init();
     ASSERT(ret_val == UART_OK, "UART Init failed! (%d)\n", ret_val);
 
-    NORMAL_PRINT("Application Starting\n");
+    NORMAL_PRINT("\n\nApplication Starting\n");
     DEBUG_PRINT("Debug prints are enabled\n");
 
     /*

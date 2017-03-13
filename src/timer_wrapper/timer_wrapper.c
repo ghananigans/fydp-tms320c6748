@@ -54,6 +54,10 @@ timer_start (
     void
     )
 {
+    //
+    // Reset timer counter register to 0
+    //
+    TimerCounterSet(SOC_TMR_0_REGS, TMR_TIMER34, 0);
     TimerTickEnable();
 
     return TIMER_OK;
