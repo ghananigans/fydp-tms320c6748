@@ -29,7 +29,7 @@ mcasp_init (
 //
 int
 mcasp_latest_rx_data (
-    uint16_t * ptr
+    uint32_t * ptr
     );
 
 void 

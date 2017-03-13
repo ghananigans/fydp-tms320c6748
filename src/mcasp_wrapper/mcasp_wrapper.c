@@ -43,7 +43,7 @@
 #define NUM_I2S_CHANNELS                      (2u) 
 
 /* Number of samples to be used per audio buffer */
-#define NUM_SAMPLES_PER_AUDIO_BUF             (1u)
+#define NUM_SAMPLES_PER_AUDIO_BUF             (2u)
 
 /* Number of buffers used per tx/rx */
 #define NUM_BUF                               (3u)
@@ -264,7 +264,6 @@ BufferRxDMAActivate (
     paramSet.destAddr =  rxBufPtr[rxBuf];
     paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
     paramSet.linkAddr = parLink * SIZE_PARAMSET ;
-
     EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
 }
 
@@ -459,7 +458,7 @@ I2SDataTxRxActivate (
     /* Enable EDMA for the transfer */
     EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX,
                         EDMA3_TRIG_MODE_EVENT);
-    EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS, 
+    EDMA3EnableTransfer(SOC_EDMA30CC_0_REGS,
                         EDMA3_CHA_MCASP0_TX, EDMA3_TRIG_MODE_EVENT);
 
     /* Activate the  serializers */
@@ -515,8 +514,8 @@ I2SDMAParamInit (
     {
         paramSet.destAddr = rxBufPtr[idx];
 
-        paramSet.linkAddr = (PAR_RX_START + ((idx + 1) % NUM_PAR)) 
-                             * (SIZE_PARAMSET);        
+        paramSet.linkAddr = (PAR_RX_START + ((idx + 1) % NUM_PAR))
+                           * (SIZE_PARAMSET);
 
         paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
 
@@ -527,8 +526,8 @@ I2SDMAParamInit (
         */
         if( 0 == idx)
         {
-            paramSet.destAddr += BYTES_PER_SAMPLE;
-            paramSet.bCnt -= BYTES_PER_SAMPLE;
+            //paramSet.destAddr += BYTES_PER_SAMPLE;
+            //paramSet.bCnt -= BYTES_PER_SAMPLE;
         }
 
         EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
@@ -568,7 +567,7 @@ mcasp_init (
 
     DEBUG_PRINT("Initializing McASP...\n");
 
-    if (AUDIO_BUF_SIZE != 4)
+    if (AUDIO_BUF_SIZE != 8)
     {
         DEBUG_PRINT("Unrecognized AUDIO_BUF_SIZE\n");
         return MCASP_INTERNAL_FAILURE_UNRECOGNIZED_AUDIO_BUF_SIZE_VALUE;
@@ -634,11 +633,10 @@ mcasp_init (
 
 int
 mcasp_latest_rx_data (
-    uint16_t * ptr
+    uint32_t * ptr
     )
 {
     memcpy((void *) ptr, (void *) rxBufPtr[lastFullRxBuf], (size_t) AUDIO_BUF_SIZE);
-    //ptr[0] = ((unsigned short *) rxBufPtr[lastFullRxBuf])[0];
     return MCASP_OK;
 }
 
