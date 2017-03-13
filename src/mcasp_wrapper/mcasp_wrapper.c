@@ -648,8 +648,8 @@ mcasp_loopback_test (
 	unsigned short parToSend;
     unsigned short parToLink;
 
-	DEBUG_PRINT("Loopback Test\n");
-	 /*
+    DEBUG_PRINT("Loopback Test\n");
+    /*
     ** Looop forever. if a new buffer is received, the lastFullRxBuf will be 
     ** updated in the rx completion ISR. if it is not the lastSentTxBuf, 
     ** buffer is to be sent. This has to be mapped to proper paRAM set.

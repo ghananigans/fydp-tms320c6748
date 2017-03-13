@@ -63,11 +63,12 @@ main (
     int ret_val;
     uint32_t mic_data[2];
     int a;
-	char buffer[50];
-	double x;
-	double y;
-	uint16_t val[NUM_SAMPLES];
-	int i;
+    char buffer[50];
+    double x;
+    double y;
+    uint16_t val[NUM_SAMPLES];
+    int i;
+    int j;
 
     /*
      * Init system interrupts.
@@ -128,49 +129,45 @@ main (
 
 #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
     ret_val = dac_internal_reference_power_down();
-    ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
-#endif // #DAC_DO_NOT_USE_INTERNAL_REFERENCE
+    ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
+#endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
 
-    //ret_val = dac_update(CHANNEL, (uint16_t) 52628);
-    //ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
-
-    //NORMAL_PRINT("DONE\n");
-    //while (1);
 #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
     /*
-	 * Pre calculate samples for simple sinusoid output to dac.
-	 */
-	x = 0;
-	for (i = 0; i < NUM_SAMPLES; ++i)
-	{
-		//y = (cos(2 * COS_FREQ * PI * x) + 1) / 0.00007629394;
-		y = (cos(2 * COS_FREQ * PI * x) + 1) * 32767;
-		x += 1.0 / SAMPLING_FREQUENCY;
-		val[i] = (uint16_t) y;
+     * Pre calculate samples for simple sinusoid output to dac.
+     */
+    x = 0;
+    for (i = 0; i < NUM_SAMPLES; ++i)
+    {
+        y = (cos(2 * COS_FREQ * PI * x) + 1) * 32767;
+        x += 1.0 / SAMPLING_FREQUENCY;
+        val[i] = (uint16_t) y;
     }
 #endif // #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
 
 #if defined(SINGLE_TONE_SIGNAL_THROUGH_DAC) || defined(MIC_TO_DAC)
-	i = 0;
+    i = 0;
     timer_start();
     while (1)
     {
 #if 0
+        //
+        // See mic data as binary and shifted
+        //
         char s0[33] = "00000000000000000000000000000000";
         char s1[33] = "00000000000000000000000000000000";
 
-        //mic_data[0] = (*((int16_t volatile *) SOC_MCASP_0_DATA_REGS));
         ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
         ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
 
-        for (i = 0; i < 32; ++i)
+        for (j = 0; j < 32; ++j)
         {
-            if (mic_data[0] & (0x1 << i))
+            if (mic_data[0] & (0x1 << j))
             {
-                s0[31 - i] = '1';
+                s0[31 - j] = '1';
             }
 
-            if (mic_data[1] & (0x1 << i))
+            if (mic_data[1] & (0x1 << j))
             {
                 s1[31 - i] = '1';
             }
@@ -195,7 +192,6 @@ main (
 #endif // #ifdef SINGLE_TONE_SIGNAL_THROUGH_DAC
 
 #if defined(MIC_TO_DAC) && !defined(SINGLE_TONE_SIGNAL_THROUGH_DAC)
-        //mic_data[0] = (*((int16_t volatile *) SOC_MCASP_0_DATA_REGS));
         ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
         ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
 
@@ -203,12 +199,6 @@ main (
         // This adds a Vref/2 DC offset
         //
         ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF));
-
-        //
-        // This is just straight data copy from mcasp registers to dac
-        //
-        //ret_val = dac_update(CHANNEL, mic_data[0]);
-
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 #endif MIC_TO_DAC
     }
@@ -219,7 +209,7 @@ main (
      * Loop forever.
      */
     NORMAL_PRINT("Looping forever...\n");
-    //while (1);
+    while (1);
 
     return 0;
 }
