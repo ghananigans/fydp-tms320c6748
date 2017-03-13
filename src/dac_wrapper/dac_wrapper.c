@@ -41,12 +41,13 @@
  * DCC_SOFTWARE_RESET = 0x7
  *   - Reset the DAC.
  */
-#define DCC_WRITE_TO_INPUT_REGISTER (0x0)
-#define DCC_UPDATE_DAC_REGISTER     (0x1)
+#define DCC_WRITE_TO_INPUT_REGISTER  (0x0)
+#define DCC_UPDATE_DAC_REGISTER      (0x1)
 #define DCC_WRITE_TO_INPUT_REGISTER_AND_UPDATE_ALL_DAC_REGISTERS (0x02)
 #define DCC_WRITE_TO_INPUT_REGISTER_AND_UPDATE_DAC_REGISTER (0x3);
-#define DCC_POWER                   (0x4)
-#define DCC_SOFTWARE_RESET          (0x7)
+#define DCC_POWER                    (0x4)
+#define DCC_SOFTWARE_RESET           (0x7)
+#define DCC_INTERNAL_REFERENCE_POWER (0x8)
 /******************************************************************************/
 /*                      INTERNAL DATA STRUCTURE DEFINITIONS                   */
 /******************************************************************************/
@@ -80,6 +81,14 @@ typedef union _dac_command_t
         uint8_t dont_care_l  : 3;
         uint8_t zero         : 1; // SET TO 0
     } power;
+
+    struct {
+        uint8_t flag         : 1; // SET TO 1 for POWER ON AND 0 for POWER OFF
+        uint32_t dont_care_m : 23;
+        uint8_t control      : 4; // SET TO 0x8
+        uint8_t dont_care_l  : 3;
+        uint8_t zero         : 1; // SET TO 0
+    } internal_reference_power;
 
     uint32_t as_uint32t;
 } dac_command_t;
@@ -157,6 +166,23 @@ dac_power (
     command.power.zero = 0;
 
     DEBUG_PRINT("Sending power related command to dac with dac flags [0x%02x] and config [0x%x]\n", dac_flags, command.power.config);
+
+    return dac_command_send(&command);
+}
+
+static
+int
+dac_internal_reference_power (
+    bool power_up
+    )
+{
+    dac_command_t command;
+
+    command.internal_reference_power.flag = !!power_up;
+    command.internal_reference_power.control = DCC_INTERNAL_REFERENCE_POWER;
+    command.internal_reference_power.zero = 0;
+
+    DEBUG_PRINT("Sending internal power related command to dac with flag [%d]\n", command.power.flag);
 
     return dac_command_send(&command);
 }
@@ -288,4 +314,20 @@ dac_update (
     command.update.zero = 0;
 
     return dac_command_send(&command);
+}
+
+int
+dac_internal_reference_power_down (
+    void
+    )
+{
+    return dac_internal_reference_power(0);
+}
+
+int
+dac_internal_reference_power_up (
+    void
+    )
+{
+    return dac_internal_reference_power(1);
 }

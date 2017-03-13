@@ -15,13 +15,13 @@
 /*
  * Use this macro for regular output.
  */
-#define NORMAL_PRINT(format, ...) printf(               \
+#define NORMAL_PRINT(format, ...) uart_print(               \
             format, ##__VA_ARGS__)
 
 /*
  * Use this macro for error output.
  */
-#define ERROR_PRINT(format, ...) printf(                \
+#define ERROR_PRINT(format, ...) uart_print(                \
             format, ##__VA_ARGS__)
 
 /*

@@ -70,7 +70,10 @@ emda3_completion_handler_isr (
                      */
                     /* Here write to ICR to clear the corresponding IPR bits. */
                     EDMA3ClrIntr(SOC_EDMA30CC_0_REGS, indexl);
-                    (*callback_functions[indexl])(indexl, EDMA3_XFER_COMPLETE);
+                    if (callback_functions[indexl])
+                    {
+                        (*callback_functions[indexl])(indexl, EDMA3_XFER_COMPLETE);
+                    }
                 }
 
                 ++indexl;
