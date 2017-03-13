@@ -24,6 +24,9 @@
 #define ERROR_PRINT(format, ...) uart_print(                \
             format, ##__VA_ARGS__)
 
+#define NORMAL_READ(buffer, buffer_size) uart_read(         \
+            (buffer), (buffer_size))
+
 /*
  * If doing prints for debugging purposes, use the
  * below macro so all debug prints can be easily disabled
