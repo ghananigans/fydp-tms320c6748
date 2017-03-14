@@ -107,7 +107,8 @@ static unsigned int spi_cs;
 static
 int
 dac_command_send (
-    dac_command_t * payload
+    dac_command_t * payload,
+    bool blocking
     )
 {
     int ret_val;
@@ -128,7 +129,15 @@ dac_command_send (
     payload->as_uint32t = ENDIAN_SWAP_32(payload->as_uint32t);
     DEBUG_PRINT("Payload AS uint32_t after endian swap: 0x%x\n", payload->as_uint32t);
 
-    ret_val = spi_send_and_receive((char volatile *) payload, sizeof(dac_command_t), spi_cs);
+    if (blocking == 0)
+    {
+        ret_val = spi_send_and_receive_non_blocking((char volatile *) payload, sizeof(dac_command_t), spi_cs);
+    }
+    else
+    {
+        ret_val = spi_send_and_receive_blocking((char volatile *) payload, sizeof(dac_command_t), spi_cs);
+    }
+
 
     if (ret_val != SPI_OK)
     {
@@ -149,7 +158,8 @@ static
 int
 dac_power (
     uint8_t dac_flags,
-    bool power_up
+    bool power_up,
+    bool blocking
     )
 {
     dac_command_t command;
@@ -167,13 +177,14 @@ dac_power (
 
     DEBUG_PRINT("Sending power related command to dac with dac flags [0x%02x] and config [0x%x]\n", dac_flags, command.power.config);
 
-    return dac_command_send(&command);
+    return dac_command_send(&command, blocking);
 }
 
 static
 int
 dac_internal_reference_power (
-    bool power_up
+    bool power_up,
+    bool blocking
     )
 {
     dac_command_t command;
@@ -184,7 +195,7 @@ dac_internal_reference_power (
 
     DEBUG_PRINT("Sending internal power related command to dac with flag [%d]\n", command.internal_reference_power.flag);
 
-    return dac_command_send(&command);
+    return dac_command_send(&command, blocking);
 }
 
 
@@ -210,7 +221,7 @@ dac_init (
 
     init_done = 1;
 
-    ret_val = dac_reset();
+    ret_val = dac_reset(1);
 
     if (ret_val != DAC_OK)
     {
@@ -227,7 +238,7 @@ dac_init (
 
 int
 dac_reset (
-    void
+    bool blocking
     )
 {
     dac_command_t command;
@@ -243,12 +254,13 @@ dac_reset (
     command.reset.control = DCC_SOFTWARE_RESET;
     command.reset.zero = 0;
 
-    return dac_command_send(&command);
+    return dac_command_send(&command, blocking);
 }
 
 int
 dac_power_up (
-    uint8_t dac_flags
+    uint8_t dac_flags,
+    bool blocking
     )
 {
     if (init_done == 0)
@@ -263,12 +275,13 @@ dac_power_up (
         return DAC_OK;
     }
 
-    return dac_power(dac_flags, 1);
+    return dac_power(dac_flags, 1, blocking);
 }
 
 int
 dac_power_down (
-    uint8_t dac_flags
+    uint8_t dac_flags,
+    bool blocking
     )
 {
     if (init_done == 0)
@@ -283,13 +296,14 @@ dac_power_down (
         return DAC_OK;
     }
 
-    return dac_power(dac_flags, 0);
+    return dac_power(dac_flags, 0, blocking);
 }
 
 int
 dac_update (
     uint8_t address,
-    uint16_t data
+    uint16_t data,
+    bool blocking
     )
 {
     dac_command_t command;
@@ -313,21 +327,21 @@ dac_update (
     command.update.control = DCC_WRITE_TO_INPUT_REGISTER_AND_UPDATE_DAC_REGISTER;
     command.update.zero = 0;
 
-    return dac_command_send(&command);
+    return dac_command_send(&command, blocking);
 }
 
 int
 dac_internal_reference_power_down (
-    void
+    bool blocking
     )
 {
-    return dac_internal_reference_power(0);
+    return dac_internal_reference_power(0, blocking);
 }
 
 int
 dac_internal_reference_power_up (
-    void
+    bool blocking
     )
 {
-    return dac_internal_reference_power(1);
+    return dac_internal_reference_power(1, blocking);
 }

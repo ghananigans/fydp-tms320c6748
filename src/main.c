@@ -121,7 +121,7 @@ play_single_tone (
         while (timer_flag == 0);
         timer_flag = 0;
 
-        ret_val = dac_update(CHANNEL, val[i]);
+        ret_val = dac_update(CHANNEL, val[i], 0);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
         if (++i == NUM_SAMPLES)
@@ -232,7 +232,7 @@ play_mic_to_dac (
         //
         // This adds a Vref/2 DC offset
         //
-        ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF));
+        ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF), 1);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
         if (++counter == SAMPLING_FREQUENCY)
@@ -335,11 +335,11 @@ main (
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
     // Power on dac channel
-    ret_val = dac_power_up(CHANNEL_POWER);
+    ret_val = dac_power_up(CHANNEL_POWER, 1);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
 #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
-    ret_val = dac_internal_reference_power_down();
+    ret_val = dac_internal_reference_power_down(1);
     ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
 #endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
 

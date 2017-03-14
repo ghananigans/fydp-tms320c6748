@@ -9,6 +9,7 @@
 #define DAC_WRAPPER_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define DAC_CHANNELS           (8)
 
@@ -48,33 +49,36 @@ dac_init (
 
 int
 dac_reset (
-    void
+    bool blocking
     );
 
 int
 dac_power_up (
-    uint8_t dac_flags
+    uint8_t dac_flags,
+    bool blocking
     );
 
 int
 dac_power_down (
-    uint8_t dac_flags
+    uint8_t dac_flags,
+    bool blocking
     );
 
 int
 dac_update (
     uint8_t address,
-    uint16_t data
+    uint16_t data,
+    bool blocking
     );
 
 int
 dac_internal_reference_power_down (
-    void
+    bool blocking
     );
 
 int
 dac_internal_reference_power_up (
-    void
+    bool blocking
     );
 
 #endif /* DAC_WRAPPER_H_ */

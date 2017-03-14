@@ -22,12 +22,23 @@ spi_init (
     void
     );
 
+void
+spi_wait_until_not_busy (
+    void
+    );
+
 int
-spi_send_and_receive (
+spi_send_and_receive_non_blocking (
     char volatile * data,
     unsigned int len,
     unsigned int cs
     );
 
+int
+spi_send_and_receive_blocking (
+    char volatile * data,
+    unsigned int len,
+    unsigned int cs
+    );
 
 #endif /* SPI_WRAPPER_H_ */

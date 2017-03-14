@@ -46,11 +46,12 @@ static bool init_done = 0;
 static volatile bool tx_flag = 0;
 static volatile bool rx_flag = 0;
 #else
-static unsigned int volatile flag = 0;
+static unsigned int volatile flag = 1;
 static unsigned int tx_len = 0;
 static unsigned int rx_len = 0;
 static char volatile * p_tx = 0;
 static char volatile * p_rx = 0;
+static unsigned int latest_cs = 0;
 #endif //#ifdef SPI_EDMA
 
 /******************************************************************************/
@@ -188,6 +189,12 @@ spi_isr (
             {
                 flag = 1;
                 SPIIntDisable(SPI_REG, SPI_RECV_INT);
+
+                /*
+                 * Deasserts the CS pin. (Notice no CSHOLD flag)
+                 */
+                SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
+                            | DATA_FORMAT), latest_cs);
             }
         }
 
@@ -339,14 +346,27 @@ spi_init (
     return SPI_OK;
 }
 
+void
+spi_wait_until_not_busy (
+    void
+    )
+{
+    DEBUG_PRINT("Waiting for spi to not be busy (finish transaction if it is doing one)\n");
+
+#ifdef SPI_EDMA
+#else  // #ifdef SPI_EDMA
+    /*
+     * Wait for flag to change (transaction to finish).
+     */
+    while (flag == 0);
+#endif // #ifdef SPI_EDMA
+}
+
 /*
- * Enables SPI Transmit and Receive interrupt.
- * Deasserts Chip Select line.
- *
  * CS should be 0 or 1 only.
  */
 int
-spi_send_and_receive (
+spi_send_and_receive_non_blocking (
     char volatile * data,
     unsigned int len,
     unsigned int cs
@@ -368,6 +388,11 @@ spi_send_and_receive (
         return SPI_INVALID_CS;
     }
 
+    //
+    // Make sure any task currently running is completed first.
+    //
+    spi_wait_until_not_busy();
+
     /*
      * Get actual cs pin mask.
      */
@@ -384,6 +409,8 @@ spi_send_and_receive (
             ERROR_PRINT("SHOULD NEVER BE HERE!?!?!?!?!?!?!??! cs = %d\n", cs);
             break;
     }
+
+    latest_cs = cs;
 
     DEBUG_PRINT("Sending and receiving spi data with cs: %d\n", cs);
     DEBUG_PRINT("Transaction starting...\n");
@@ -411,8 +438,8 @@ spi_send_and_receive (
     p_tx = data;
     p_rx = data;
 
-   tx_len = len;
-   rx_len = len;
+    tx_len = len;
+    rx_len = len;
 #endif // #ifdef SPI_EDMA
 
     /*
@@ -432,23 +459,37 @@ spi_send_and_receive (
     tx_flag = 0;
     rx_flag = 0;
 #else // #ifdef SPI_EDMA
+    flag = 0;
+
     /*
      * Enable the interrupts.
      */
     SPIIntEnable(SPI_REG, (SPI_RECV_INT | SPI_TRANSMIT_INT));
-
-    /*
-     * Wait for flag to change (transaction to finish).
-     */
-    while (flag == 0);
-    flag = 0;
 #endif // #ifdef SPI_EDMA
 
-    /*
-     * Deasserts the CS pin. (Notice no CSHOLD flag)
-     */
-    SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
-                | DATA_FORMAT), cs);
+    return SPI_OK;
+}
+
+int
+spi_send_and_receive_blocking (
+    char volatile * data,
+    unsigned int len,
+    unsigned int cs
+    )
+{
+    int ret_val;
+
+    ret_val = spi_send_and_receive_non_blocking(data, len, cs);
+
+    if (ret_val != SPI_OK)
+    {
+        return ret_val;
+    }
+
+    //
+    // Wait for SPI to finish the transaction
+    //
+    spi_wait_until_not_busy();
 
     DEBUG_PRINT("Transaction finished!\n");
 
