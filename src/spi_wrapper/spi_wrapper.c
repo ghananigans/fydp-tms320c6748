@@ -41,17 +41,17 @@
 /*                      INTERNAL GLOBAL VARIABLES                           */
 /****************************************************************************/
 static bool init_done = 0;
+static unsigned int latest_cs = 0;
 
 #ifdef SPI_EDMA
-static volatile bool tx_flag = 0;
-static volatile bool rx_flag = 0;
+static volatile bool tx_flag = 1;
+static volatile bool rx_flag = 1;
 #else
 static unsigned int volatile flag = 1;
 static unsigned int tx_len = 0;
 static unsigned int rx_len = 0;
 static char volatile * p_tx = 0;
 static char volatile * p_rx = 0;
-static unsigned int latest_cs = 0;
 #endif //#ifdef SPI_EDMA
 
 /******************************************************************************/
@@ -85,6 +85,15 @@ callback (
 
         default:
             break;
+    }
+
+    if (rx_flag && tx_flag)
+    {
+        /*
+         * Deasserts the CS pin. (Notice no CSHOLD flag)
+         */
+        SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
+                    | DATA_FORMAT), latest_cs);
     }
 }
 /*
@@ -354,6 +363,8 @@ spi_wait_until_not_busy (
     DEBUG_PRINT("Waiting for spi to not be busy (finish transaction if it is doing one)\n");
 
 #ifdef SPI_EDMA
+    /* Wait until both the flags are set to 1 in the callback function. */
+    while ((tx_flag == 0) || (rx_flag == 0));
 #else  // #ifdef SPI_EDMA
     /*
      * Wait for flag to change (transaction to finish).
@@ -423,14 +434,14 @@ spi_send_and_receive_non_blocking (
 
     /* Configure the PaRAM registers in EDMA for Transmission.*/
     ret_val = edma3_param_set_spi_tx(EDMA3_CHA_SPI0_TX, EDMA3_CHA_SPI0_TX, data, len);
-    if (ret_val != SPI_OK)
+    if (ret_val != EDMA3_OK)
     {
         return ret_val;
     }
 
     /* Configure the PaRAM registers in EDMA for Reception.*/
     ret_val = edma3_param_set_spi_rx(EDMA3_CHA_SPI0_RX, EDMA3_CHA_SPI0_RX, data, len, 1);
-    if (ret_val != SPI_OK)
+    if (ret_val != EDMA3_OK)
     {
         return ret_val;
     }
@@ -449,15 +460,13 @@ spi_send_and_receive_non_blocking (
                 | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
 
 #ifdef SPI_EDMA
+    tx_flag = 0;
+    rx_flag = 0;
+
     /*
      * Enable the interrupts.
      */
     SPIIntEnable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
-
-    /* Wait until both the flags are set to 1 in the callback function. */
-    while ((tx_flag == 0) || (rx_flag == 0));
-    tx_flag = 0;
-    rx_flag = 0;
 #else // #ifdef SPI_EDMA
     flag = 0;
 
