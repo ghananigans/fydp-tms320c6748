@@ -11,7 +11,7 @@
 enum CONSOLE_COMMANDS_ERROR_CODES
 {
     CONSOLE_COMMANDS_OK,
-	CONSOLE_COMMANDS_ALREADY_INITIALIZED
+    CONSOLE_COMMANDS_ALREADY_INITIALIZED
 };
 
 typedef int (* console_command_func_t) (
@@ -36,6 +36,5 @@ int
 console_commands_run (
     void
     );
-
 
 #endif /* SRC_CONSOLE_COMMANDS_CONSOLE_COMMANDS_H_ */

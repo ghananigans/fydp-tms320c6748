@@ -125,7 +125,7 @@ console_commands_run (
                     }
                     else
                     {
-                    	NORMAL_PRINT("Command returned with error code %d.\n", ret_val);
+                        NORMAL_PRINT("Command returned with error code %d.\n", ret_val);
                     }
 
                     break;
