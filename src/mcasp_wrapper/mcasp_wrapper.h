@@ -34,7 +34,7 @@ mcasp_latest_rx_data (
 
 void 
 mcasp_loopback_test (
-	void
-	);
+    void
+    );
 
 #endif /* MCASP_WRAPPER_H_ */

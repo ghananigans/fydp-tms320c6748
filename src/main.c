@@ -64,7 +64,7 @@ test_command (
 {
     int i;
 
-    NORMAL_PRINT("Testing this command\n");
+    NORMAL_PRINT("Test command\n");
     NORMAL_PRINT("    Number of params: %d\n", num_params);
 
     for (i = 0; i < num_params; ++i)
@@ -91,6 +91,18 @@ play_single_tone (
     double y;
     uint16_t val[NUM_SAMPLES];
 
+    NORMAL_PRINT("Play single tone command\n");
+
+    //
+    // Max number of seconds is done by first param
+    //
+    max_seconds = atoi(params[0]);
+    counter = 0;
+    seconds = 0;
+
+    NORMAL_PRINT("    Playing single tone of %d Hz with a sampling frequency of %d Hz "
+            "for %d seconds\n", COS_FREQ, SAMPLING_FREQUENCY, max_seconds);
+
     /*
      * Pre calculate samples for simple sinusoid output to dac.
      */
@@ -101,15 +113,6 @@ play_single_tone (
         x += 1.0 / SAMPLING_FREQUENCY;
         val[i] = (uint16_t) y;
     }
-
-    //
-    // Max number of seconds is done by first param
-    //
-    max_seconds = atoi(params[0]);
-    counter = 0;
-    seconds = 0;
-
-    DEBUG_PRINT("Playing single tone for %d seconds!\n", max_seconds);
 
     timer_start();
     while (seconds < max_seconds)
@@ -150,13 +153,15 @@ print_mic_data (
     unsigned int max_count;
     uint32_t mic_data[2];
 
+    NORMAL_PRINT("Print mic data command\n");
+
     //
     // Max number of counds is done by first param
     //
     max_count = atoi(params[0]);
     counter = 0;
 
-    DEBUG_PRINT("Printing mic to data for %d iterations!\n", max_count);
+    NORMAL_PRINT("Printing mic to data for %d iterations!\n", max_count);
 
     while (counter++ < max_count)
     {
@@ -182,9 +187,11 @@ print_mic_data (
             }
         }
 
-        NORMAL_PRINT("0: %s %d %d\n", s0, (int16_t)mic_data[0], (mic_data[0] + 32767) & 0xFFFF);
-        NORMAL_PRINT("1: %s %d %d\n", s1, (int16_t)mic_data[1], (mic_data[1] + 32767) & 0xFFFF);
+        NORMAL_PRINT("0: %s %d %d\n", s0, (int16_t) mic_data[0], (mic_data[0] + 32767) & 0xFFFF);
+        NORMAL_PRINT("1: %s %d %d\n", s1, (int16_t) mic_data[1], (mic_data[1] + 32767) & 0xFFFF);
     }
+
+    return 0;
 }
 
 static
@@ -200,6 +207,8 @@ play_mic_to_dac (
     unsigned int max_seconds;
     unsigned int seconds;
 
+    NORMAL_PRINT("Play mic to dac command\n");
+
     //
     // Max number of seconds is done by first param
     //
@@ -207,7 +216,8 @@ play_mic_to_dac (
     counter = 0;
     seconds = 0;
 
-    DEBUG_PRINT("Playing mic to data for %d seconds!\n", max_seconds);
+    NORMAL_PRINT("Playing mic to data for %d seconds (outputting at a frequency of %d Hz)\n",
+            max_seconds, SAMPLING_FREQUENCY);
 
     timer_start();
     while (seconds < max_seconds)
@@ -237,28 +247,6 @@ play_mic_to_dac (
 }
 
 #define NUM_COMMANDS (4)
-static console_command_t const commands[NUM_COMMANDS] = {
-    {
-        (char *) "test",
-        (char *) "Command to simply test the console command api.\n        Usage: test\n",
-        (int (*)(char **, unsigned int)) &test_command
-    },
-    {
-        (char *) "play-single-tone",
-        (char *) "Command to play a single tone.\n        Usage: play-single-tone <number of seconds>\n",
-        (int (*)(char **, unsigned int)) &play_single_tone
-    },
-	{
-        (char *) "print-mic-data",
-        (char *) "Command to see mic data in binary and decimal.\n        Usage: print-mic-data <number of samples>\n",
-        (int (*)(char **, unsigned int)) &print_mic_data
-    },
-    {
-        (char *) "play-mic-to-dac",
-        (char *) "Output mic data through the DAC.\n        Usage: play-mic-to-dac <number of seconds>\n",
-        (int (*)(char **, unsigned int)) &play_mic_to_dac
-    },
-};
 
 int
 main (
@@ -266,13 +254,32 @@ main (
     )
 {
     int ret_val;
-    uint32_t mic_data[2];
-    int a;
-    char buffer[50];
-    double x;
-    double y;
-    int i;
-    int j;
+    console_command_t const commands[NUM_COMMANDS] = {
+        {   // 0
+            (char *) "test", // command_token
+            (char *) "Command to simply test the console command api.\n        "
+                "Usage: test [param0] [param1] ... [param9]\n", // description
+            (console_command_func_t) &test_command // function pointer
+        },
+        {   // 1
+            (char *) "play-single-tone",
+            (char *) "Command to play a single tone.\n        "
+                "Usage: play-single-tone <number of seconds>\n",
+            (console_command_func_t) &play_single_tone
+        },
+        {   // 2
+            (char *) "print-mic-data",
+            (char *) "Command to see mic data in binary and decimal.\n        "
+                "Usage: print-mic-data <number of samples>\n",
+            (console_command_func_t) &print_mic_data
+        },
+        {   // 3
+            (char *) "play-mic-to-dac",
+            (char *) "Output mic data through the DAC.\n        "
+                "Usage: play-mic-to-dac <number of seconds>\n",
+            (console_command_func_t) &play_mic_to_dac
+        },
+    };
 
     /*
      * Init system interrupts.
@@ -345,7 +352,8 @@ main (
     /*
      * Do whatever commands tell us to do.
      */
-    console_commands_run();
+    ret_val = console_commands_run();
+    ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands run failed! (%d)\n", ret_val);
 
     /*
      * Loop forever.

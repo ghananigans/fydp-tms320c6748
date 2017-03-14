@@ -31,7 +31,7 @@
 /* value to configure SMIO,SOMI,CLK and CS pin as functional pin */
 #define SIMO_SOMI_CLK_CS        (0x00000E30)
 #define CHAR_LENGTH             (0x8)
-#define	DATA_FORMAT             SPI_DATA_FORMAT0
+#define DATA_FORMAT             SPI_DATA_FORMAT0
 #define SPI_REG                 SOC_SPI_0_REGS
 #define SPI_CS0                 (0x10)
 #define SPI_CS1                 (0x20)
@@ -428,9 +428,9 @@ spi_send_and_receive (
     SPIIntEnable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
 
     /* Wait until both the flags are set to 1 in the callback function. */
-	while ((tx_flag == 0) || (rx_flag == 0));
-	tx_flag = 0;
-	rx_flag = 0;
+    while ((tx_flag == 0) || (rx_flag == 0));
+    tx_flag = 0;
+    rx_flag = 0;
 #else // #ifdef SPI_EDMA
     /*
      * Enable the interrupts.

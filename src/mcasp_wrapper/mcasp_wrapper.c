@@ -237,10 +237,10 @@ ParamTxLoopJobSet (
 static 
 void 
 mcasp_error_isr (
-	void
-	)
+    void
+    )
 {
-	IntEventClear(SYS_INT_MCASP0_INT);
+    IntEventClear(SYS_INT_MCASP0_INT);
 }
 
 /*
@@ -249,8 +249,8 @@ mcasp_error_isr (
 static 
 void 
 BufferRxDMAActivate (
-	unsigned int rxBuf, 
-	unsigned short parId,
+    unsigned int rxBuf, 
+    unsigned short parId,
     unsigned short parLink
     )
 {
@@ -273,8 +273,8 @@ BufferRxDMAActivate (
 static
 void 
 BufferTxDMAActivate (
-	unsigned int txBuf, 
-	unsigned short numSamples,
+    unsigned int txBuf, 
+    unsigned short numSamples,
     unsigned short parId, 
     unsigned short linkPar
     )
@@ -299,9 +299,9 @@ BufferTxDMAActivate (
 static 
 void 
 McASPRxDMAComplHandler (
-	unsigned int tcc_num,
+    unsigned int tcc_num,
   unsigned int status
-	)
+    )
 {
     unsigned short nxtParToUpdate;
 
@@ -330,9 +330,9 @@ McASPRxDMAComplHandler (
 static 
 void 
 McASPTxDMAComplHandler (
-	unsigned int tcc_num,
+    unsigned int tcc_num,
   unsigned int status
-	)
+    )
 {
     ParamTxLoopJobSet((unsigned short)(PAR_TX_START + parOffSent));
 
@@ -345,8 +345,8 @@ McASPTxDMAComplHandler (
 static 
 void 
 aic31_i2s_configure (
-	void
-	)
+    void
+    )
 {
     volatile unsigned int delay = 0xFFF;
 
@@ -368,8 +368,8 @@ aic31_i2s_configure (
 static 
 void 
 mcasp_i2s_configure (
-	void
-	)
+    void
+    )
 {
     McASPRxReset(SOC_MCASP_0_CTRL_REGS);
     McASPTxReset(SOC_MCASP_0_CTRL_REGS);
@@ -448,8 +448,8 @@ mcasp_i2s_configure (
 static 
 void 
 I2SDataTxRxActivate (
-	void
-	)
+    void
+    )
 {
     /* Start the clocks */
     McASPRxClkStart(SOC_MCASP_0_CTRL_REGS, MCASP_RX_CLK_EXTERNAL);
@@ -496,8 +496,8 @@ I2SDataTxRxActivate (
 static 
 void 
 I2SDMAParamInit (
-	void
-	)
+    void
+    )
 {
     EDMA3CCPaRAMEntry paramSet;
     int idx; 
@@ -559,7 +559,7 @@ mcasp_init (
     void
     )
 {
-	if (init_done)
+    if (init_done)
     {
         DEBUG_PRINT("McASP is already initialized!\n");
         return MCASP_ALREADY_INITIALIZED;
@@ -573,15 +573,15 @@ mcasp_init (
         return MCASP_INTERNAL_FAILURE_UNRECOGNIZED_AUDIO_BUF_SIZE_VALUE;
     }
 
-	/* Set up pin mux for I2C module 0 */
-	DEBUG_PRINT("Configuring pinmuxes\n");
+    /* Set up pin mux for I2C module 0 */
+    DEBUG_PRINT("Configuring pinmuxes\n");
     I2CPinMuxSetup(0);
     McASPPinMuxSetup();
 
     /* Power up the McASP module */
-   	DEBUG_PRINT("Turning McASP ON\n");
+    DEBUG_PRINT("Turning McASP ON\n");
     PSCModuleControl(SOC_PSC_1_REGS, HW_PSC_MCASP0, PSC_POWERDOMAIN_ALWAYS_ON,
-		     PSC_MDCTL_NEXT_ENABLE);
+             PSC_MDCTL_NEXT_ENABLE);
 
     // EDMA3 should be initted
 
@@ -597,34 +597,34 @@ mcasp_init (
     //
     DEBUG_PRINT("McASP Error Interrupt\n");
     IntRegister(C674X_MASK_INT8, mcasp_error_isr);
-	IntEventMap(C674X_MASK_INT8, SYS_INT_MCASP0_INT);
-	IntEnable(C674X_MASK_INT8);
+    IntEventMap(C674X_MASK_INT8, SYS_INT_MCASP0_INT);
+    IntEnable(C674X_MASK_INT8);
 
-	DEBUG_PRINT("Request edma3 channels\n");
-	edma3_request_channel(EDMA3_CHA_MCASP0_TX, EDMA3_CHA_MCASP0_TX);
-	edma3_request_channel(EDMA3_CHA_MCASP0_RX, EDMA3_CHA_MCASP0_RX);
+    DEBUG_PRINT("Request edma3 channels\n");
+    edma3_request_channel(EDMA3_CHA_MCASP0_TX, EDMA3_CHA_MCASP0_TX);
+    edma3_request_channel(EDMA3_CHA_MCASP0_RX, EDMA3_CHA_MCASP0_RX);
 
-	/* Registering Callback Function for Tx and Rx. */
-	DEBUG_PRINT("Register callback function with edma3\n");
+    /* Registering Callback Function for Tx and Rx. */
+    DEBUG_PRINT("Register callback function with edma3\n");
     edma3_set_callback(EDMA3_CHA_MCASP0_TX, &McASPTxDMAComplHandler);
     edma3_set_callback(EDMA3_CHA_MCASP0_RX, &McASPRxDMAComplHandler);
 
-	/* Initialize the DMA parameters */
+    /* Initialize the DMA parameters */
     I2SDMAParamInit();
 
-	/* Configure the Codec for I2S mode */
-	DEBUG_PRINT("Configure the codef for i2s mode\n");
-	aic31_i2s_configure();
+    /* Configure the Codec for I2S mode */
+    DEBUG_PRINT("Configure the codef for i2s mode\n");
+    aic31_i2s_configure();
 
-	/* Configure the McASP for I2S */
-	DEBUG_PRINT("Configure the McASP for i2s mode\n");
-	mcasp_i2s_configure();
+    /* Configure the McASP for I2S */
+    DEBUG_PRINT("Configure the McASP for i2s mode\n");
+    mcasp_i2s_configure();
 
-	/* Activate the audio transmission and reception */ 
-	DEBUG_PRINT("Activate Rx and Tx\n");
-	I2SDataTxRxActivate();
+    /* Activate the audio transmission and reception */ 
+    DEBUG_PRINT("Activate Rx and Tx\n");
+    I2SDataTxRxActivate();
 
-	init_done = 1;
+    init_done = 1;
 
     DEBUG_PRINT("Done initializing McASP!\n");
 
@@ -642,10 +642,10 @@ mcasp_latest_rx_data (
 
 void 
 mcasp_loopback_test (
-	void
-	)
+    void
+    )
 {
-	unsigned short parToSend;
+    unsigned short parToSend;
     unsigned short parToLink;
 
     DEBUG_PRINT("Loopback Test\n");
