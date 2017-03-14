@@ -10,16 +10,20 @@
 #include "console_commands.h"
 #include <stdbool.h>
 #include <string.h>
-#define HELP_COMMAND_CMD ("help")
-#define HELP_COMMAND_DESCRIPTION ("Print all commands")
-#define BUFFER_SIZE (101)
-#define TOKEN_DELIMITER (" ")
-#define MAX_PARAMS (10)
+
+#define BUFFER_SIZE              (101)
+#define TOKEN_DELIMITER          (" ")
+#define MAX_PARAMS               (10)
+#define HELP_COMMAND_CMD         ("help")
+#define HELP_COMMAND_DESCRIPTION ("Print all commands.\n" \
+                "        Usage: help\n")
+#define QUIT_COMMAND_CMD         ("quit")
+#define QUIT_COMMAND_DESCRIPTION ("Quit this command processing shell.\n" \
+                "        Usage: quit\n")
 
 static bool init_done = 0;
-
-console_command_t const * all_commands = 0;
-unsigned int num_all_commands = 0;
+static console_command_t const * all_commands = 0;
+static unsigned int num_all_commands = 0;
 
 static
 void
@@ -30,13 +34,15 @@ console_commands_print_all (
     int i;
 
     NORMAL_PRINT("Commands List:\n");
-    NORMAL_PRINT("<cmd> - <description>\n\n");
+    NORMAL_PRINT("    <cmd> - <description>\n\n");
 
     NORMAL_PRINT("    %s - %s\n", HELP_COMMAND_CMD, HELP_COMMAND_DESCRIPTION);
+    NORMAL_PRINT("    %s - %s\n", QUIT_COMMAND_CMD, QUIT_COMMAND_DESCRIPTION);
 
     for (i = 0; i < num_all_commands; ++i)
     {
-        NORMAL_PRINT("    %s - %s\n", all_commands[i].cmd, all_commands[i].description);
+        NORMAL_PRINT("    %s - %s\n", all_commands[i].command_token,
+                all_commands[i].description);
     }
 }
 
@@ -60,7 +66,7 @@ console_commands_init (
     return CONSOLE_COMMANDS_OK;
 }
 
-void
+int
 console_commands_run (
     void
     )
@@ -68,8 +74,11 @@ console_commands_run (
     int i;
     int j;
     char buffer[BUFFER_SIZE];
-    char * cmd;
+    char * command_token;
     char * params[MAX_PARAMS];
+    int ret_val;
+
+    NORMAL_PRINT("Starting interactive console... Hi :)\n");
 
     while (1)
     {
@@ -77,17 +86,22 @@ console_commands_run (
         NORMAL_READ((char *) &buffer, BUFFER_SIZE);
         NORMAL_PRINT("\n");
 
-        cmd = strtok(buffer, TOKEN_DELIMITER);
+        command_token = strtok(buffer, TOKEN_DELIMITER);
 
-        if (strcmp(cmd, HELP_COMMAND_CMD) == 0)
+        if (strcmp(command_token, HELP_COMMAND_CMD) == 0)
         {
             console_commands_print_all();
+        }
+        else if (strcmp(command_token, QUIT_COMMAND_CMD) == 0)
+        {
+            NORMAL_PRINT("Quitting interactive console... Bye :(\n");
+            break;
         }
         else
         {
             for (i = 0; i < num_all_commands; ++i)
             {
-                if (strcmp(cmd, all_commands[i].cmd) == 0)
+                if (strcmp(command_token, all_commands[i].command_token) == 0)
                 {
                     //
                     // Get all params
@@ -103,7 +117,16 @@ console_commands_run (
                         }
                     }
 
-                    all_commands[i].func((char **) &params, j);
+                    ret_val = all_commands[i].func((char **) &params, j);
+
+                    if (ret_val == 0)
+                    {
+                        NORMAL_PRINT("Command returned successfully.\n");
+                    }
+                    else
+                    {
+                    	NORMAL_PRINT("Command returned with error code %d.\n", ret_val);
+                    }
 
                     break;
                 }
@@ -115,4 +138,6 @@ console_commands_run (
             }
         }
     }
+
+    return CONSOLE_COMMANDS_OK;
 }

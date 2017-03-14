@@ -96,7 +96,7 @@ play_single_tone (
     //
     // Max number of seconds is done by first param
     //
-    max_seconds = atoi(params[0])
+    max_seconds = atoi(params[0]);
     counter = 0;
     seconds = 0;
 
@@ -256,24 +256,28 @@ main (
     int ret_val;
     console_command_t const commands[NUM_COMMANDS] = {
         {   // 0
-            (char *) "test",
-            (char *) "Command to simply test the console command api.\n        Usage: test\n",
-            (int (*)(char **, unsigned int)) &test_command
+            (char *) "test", // command_token
+            (char *) "Command to simply test the console command api.\n        "
+                "Usage: test [param0] [param1] ... [param9]\n", // description
+            (console_command_func_t) &test_command // function pointer
         },
         {   // 1
             (char *) "play-single-tone",
-            (char *) "Command to play a single tone.\n        Usage: play-single-tone <number of seconds>\n",
-            (int (*)(char **, unsigned int)) &play_single_tone
+            (char *) "Command to play a single tone.\n        "
+                "Usage: play-single-tone <number of seconds>\n",
+            (console_command_func_t) &play_single_tone
         },
         {   // 2
             (char *) "print-mic-data",
-            (char *) "Command to see mic data in binary and decimal.\n        Usage: print-mic-data <number of samples>\n",
-            (int (*)(char **, unsigned int)) &print_mic_data
+            (char *) "Command to see mic data in binary and decimal.\n        "
+                "Usage: print-mic-data <number of samples>\n",
+            (console_command_func_t) &print_mic_data
         },
         {   // 3
             (char *) "play-mic-to-dac",
-            (char *) "Output mic data through the DAC.\n        Usage: play-mic-to-dac <number of seconds>\n",
-            (int (*)(char **, unsigned int)) &play_mic_to_dac
+            (char *) "Output mic data through the DAC.\n        "
+                "Usage: play-mic-to-dac <number of seconds>\n",
+            (console_command_func_t) &play_mic_to_dac
         },
     };
 
@@ -348,7 +352,8 @@ main (
     /*
      * Do whatever commands tell us to do.
      */
-    console_commands_run();
+    ret_val = console_commands_run();
+    ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands run failed! (%d)\n", ret_val);
 
     /*
      * Loop forever.

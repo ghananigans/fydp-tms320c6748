@@ -14,14 +14,16 @@ enum CONSOLE_COMMANDS_ERROR_CODES
 	CONSOLE_COMMANDS_ALREADY_INITIALIZED
 };
 
+typedef int (* console_command_func_t) (
+    char **,
+    unsigned int
+    );
+
 typedef struct _console_command_t
 {
-    char const * const cmd;
+    char const * const command_token;
     char const * const description;
-    int (* const func) (
-        char ** params,
-        unsigned int num_params
-        );
+    console_command_func_t func;
 } console_command_t;
 
 int
@@ -30,7 +32,7 @@ console_commands_init (
     unsigned int const num_commands
     );
 
-void
+int
 console_commands_run (
     void
     );
