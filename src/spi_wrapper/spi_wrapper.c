@@ -41,12 +41,13 @@
 /*                      INTERNAL GLOBAL VARIABLES                           */
 /****************************************************************************/
 static bool init_done = 0;
+static unsigned int latest_cs = 0;
 
 #ifdef SPI_EDMA
-static volatile bool tx_flag = 0;
-static volatile bool rx_flag = 0;
+static volatile bool tx_flag = 1;
+static volatile bool rx_flag = 1;
 #else
-static unsigned int volatile flag = 0;
+static unsigned int volatile flag = 1;
 static unsigned int tx_len = 0;
 static unsigned int rx_len = 0;
 static char volatile * p_tx = 0;
@@ -84,6 +85,15 @@ callback (
 
         default:
             break;
+    }
+
+    if (rx_flag && tx_flag)
+    {
+        /*
+         * Deasserts the CS pin. (Notice no CSHOLD flag)
+         */
+        SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
+                    | DATA_FORMAT), latest_cs);
     }
 }
 /*
@@ -188,6 +198,12 @@ spi_isr (
             {
                 flag = 1;
                 SPIIntDisable(SPI_REG, SPI_RECV_INT);
+
+                /*
+                 * Deasserts the CS pin. (Notice no CSHOLD flag)
+                 */
+                SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
+                            | DATA_FORMAT), latest_cs);
             }
         }
 
@@ -339,14 +355,29 @@ spi_init (
     return SPI_OK;
 }
 
+void
+spi_wait_until_not_busy (
+    void
+    )
+{
+    DEBUG_PRINT("Waiting for spi to not be busy (finish transaction if it is doing one)\n");
+
+#ifdef SPI_EDMA
+    /* Wait until both the flags are set to 1 in the callback function. */
+    while ((tx_flag == 0) || (rx_flag == 0));
+#else  // #ifdef SPI_EDMA
+    /*
+     * Wait for flag to change (transaction to finish).
+     */
+    while (flag == 0);
+#endif // #ifdef SPI_EDMA
+}
+
 /*
- * Enables SPI Transmit and Receive interrupt.
- * Deasserts Chip Select line.
- *
  * CS should be 0 or 1 only.
  */
 int
-spi_send_and_receive (
+spi_send_and_receive_non_blocking (
     char volatile * data,
     unsigned int len,
     unsigned int cs
@@ -368,6 +399,11 @@ spi_send_and_receive (
         return SPI_INVALID_CS;
     }
 
+    //
+    // Make sure any task currently running is completed first.
+    //
+    spi_wait_until_not_busy();
+
     /*
      * Get actual cs pin mask.
      */
@@ -385,6 +421,8 @@ spi_send_and_receive (
             break;
     }
 
+    latest_cs = cs;
+
     DEBUG_PRINT("Sending and receiving spi data with cs: %d\n", cs);
     DEBUG_PRINT("Transaction starting...\n");
 
@@ -396,14 +434,14 @@ spi_send_and_receive (
 
     /* Configure the PaRAM registers in EDMA for Transmission.*/
     ret_val = edma3_param_set_spi_tx(EDMA3_CHA_SPI0_TX, EDMA3_CHA_SPI0_TX, data, len);
-    if (ret_val != SPI_OK)
+    if (ret_val != EDMA3_OK)
     {
         return ret_val;
     }
 
     /* Configure the PaRAM registers in EDMA for Reception.*/
     ret_val = edma3_param_set_spi_rx(EDMA3_CHA_SPI0_RX, EDMA3_CHA_SPI0_RX, data, len, 1);
-    if (ret_val != SPI_OK)
+    if (ret_val != EDMA3_OK)
     {
         return ret_val;
     }
@@ -411,8 +449,8 @@ spi_send_and_receive (
     p_tx = data;
     p_rx = data;
 
-   tx_len = len;
-   rx_len = len;
+    tx_len = len;
+    rx_len = len;
 #endif // #ifdef SPI_EDMA
 
     /*
@@ -422,33 +460,45 @@ spi_send_and_receive (
                 | SPI_SPIDAT1_CSHOLD | DATA_FORMAT), cs);
 
 #ifdef SPI_EDMA
+    tx_flag = 0;
+    rx_flag = 0;
+
     /*
      * Enable the interrupts.
      */
     SPIIntEnable(SPI_REG, SPI_DMA_REQUEST_ENA_INT);
-
-    /* Wait until both the flags are set to 1 in the callback function. */
-    while ((tx_flag == 0) || (rx_flag == 0));
-    tx_flag = 0;
-    rx_flag = 0;
 #else // #ifdef SPI_EDMA
+    flag = 0;
+
     /*
      * Enable the interrupts.
      */
     SPIIntEnable(SPI_REG, (SPI_RECV_INT | SPI_TRANSMIT_INT));
-
-    /*
-     * Wait for flag to change (transaction to finish).
-     */
-    while (flag == 0);
-    flag = 0;
 #endif // #ifdef SPI_EDMA
 
-    /*
-     * Deasserts the CS pin. (Notice no CSHOLD flag)
-     */
-    SPIDat1Config(SPI_REG, (SPI_SPIDAT1_WDEL
-                | DATA_FORMAT), cs);
+    return SPI_OK;
+}
+
+int
+spi_send_and_receive_blocking (
+    char volatile * data,
+    unsigned int len,
+    unsigned int cs
+    )
+{
+    int ret_val;
+
+    ret_val = spi_send_and_receive_non_blocking(data, len, cs);
+
+    if (ret_val != SPI_OK)
+    {
+        return ret_val;
+    }
+
+    //
+    // Wait for SPI to finish the transaction
+    //
+    spi_wait_until_not_busy();
 
     DEBUG_PRINT("Transaction finished!\n");
 
