@@ -72,10 +72,11 @@ void run_main_algorithm()
 
         /*Take ifft of Y to get output y in time domain */
         ifft_wrap(audio_data[ch].Y,audio_data[ch].y);
-
-        /*Write to speakers*/
-        send_speaker_output(audio_data[ch].y);
     }
+
+    /*Write to speakers*/
+	send_speaker_output(audio_data);
+
 
 #if MATLAB_DEBUG_ENABLED
     if(iteration_count == 300)

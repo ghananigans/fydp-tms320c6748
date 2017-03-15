@@ -5,13 +5,6 @@
 #include "mock.h"
 
 
-/* Obtains raw mic sample as unsigned integer for the mentioned channel */
-rawmic_t get_rawmic_data(audio_channel_t ch)
-{
-	/* MOCK: replace with actual data coming from mic*/
-	return	mock_get_mic_input(ch);
-}
-
 #define RAWMIC_UPPER_BOUND (0.8f) /* This is the max value a mic reading can take in float representation.  Note: this reading may be amplified, so it is worthwhile keeping it between 0.7 and 1.0 at most */
 #define RAWMIC_SCALE_DOWN (RAWMIC_MAX_VAL / RAWMIC_UPPER_BOUND) /*Gives resulting float range between 0 and RAWMIC_UPPER_BOUND */
 
@@ -39,11 +32,16 @@ float convert_rawmic_to_float(rawmic_t data)
 void get_mic_data_float(float mic_data_float[AUDIO_CHANNEL_COUNT])
 {
 	unsigned int i;
-	rawmic_t rawdata;
+	int ret_val;
+	rawmic_t rawdata[2];
+
+	/* Gets the reading from the microphone */
+	ret_val = mcasp_latest_rx_data((uint32_t *) &rawdata);
+	ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
+
 	for(i = 0; i < AUDIO_CHANNEL_COUNT; i++)
 	{
-		rawdata = get_rawmic_data((audio_channel_t)i);
-		mic_data_float[i] = convert_rawmic_to_float(rawdata);
+		mic_data_float[i] = convert_rawmic_to_float(rawdata[i]);
 	}
 }
 

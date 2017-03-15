@@ -12,7 +12,7 @@ speakerout_t convert_float_to_speakerout(float f)
 {
 	/* We add 1 since it's unsigned number we are converting to and the number can be purely positive*/
 	f = (f + 1);
-	/* We now have f between 0 and 2.  Scale up to be between 0 and MAX_VAL. */
+	/* We now have f between 0 and 2.  Scale up to be between 0 and SPEAKEROUT_MAX_VAL. */
 	f = f * (SPEAKEROUT_MAX_VAL / 2);
 	if( f > SPEAKEROUT_MAX_VAL )
 	{
@@ -23,11 +23,23 @@ speakerout_t convert_float_to_speakerout(float f)
 	return (speakerout_t) f;
 }
 
-void send_speaker_output(float * data)
+void send_speaker_output(audio_data_t audio_data[AUDIO_CHANNEL_COUNT])
 {
-	speakerout_t out_sample = convert_float_to_speakerout(data[SPEAKEROUT_CHOSEN_SAMPLE * 2]);
+	int ret_val;
+	unsigned int ch;
+	speakerout_t out_samples[AUDIO_CHANNEL_COUNT];
 
-	/* STUB: Send out_sample to DAC */
+	/*TODO: modify so that both channels are outputted to the speaker simultaneously!!! */
+
+	for(ch = 0; ch < AUDIO_CHANNEL_COUNT; ch++)
+	{
+		out_samples[ch] = convert_float_to_speakerout(audio_data[ch].y[SPEAKEROUT_CHOSEN_SAMPLE * 2]);
+
+		/* This adds a Vref/2 DC offset */
+		ret_val = dac_update(ch, (uint16_t)((out_samples[ch] + 32767) & 0xFFFF), 1);
+		ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+	}
+
 }
 
 

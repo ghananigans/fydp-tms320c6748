@@ -247,50 +247,58 @@ play_mic_to_dac (
     return 0;
 }
 
-static int run_antivoice()
+static int run_antivoice(char ** params,
+	    		unsigned int num_params
+)
 {
-		/*Calibration switch must be enabled at power-on to calibrate
-	    switch does not have effect during normal mode of operation (likely accidental if switched)*/
-	    if(is_calibration_enabled())
-	    {
-	    	/*TODO: this currently just sets some default values and no real calibration. */
-	        run_calibration();
-	        /*TODO: perhaps have a pause here? */
-	    }
+	int ret_val;
 
-		fft_wrap_init();
-		signal_processing_init();
+	unsigned int counter;
+	unsigned int max_seconds;
+	unsigned int seconds;
+	/*Calibration switch must be enabled at power-on to calibrate
+	switch does not have effect during normal mode of operation (likely accidental if switched)*/
+	if(is_calibration_enabled())
+	{
+		/*TODO: this currently just sets some default values and no real calibration. */
+		run_calibration();
+		/*TODO: perhaps have a pause here? */
+	}
 
-		iteration_count = 0;
+	fft_wrap_init();
+	signal_processing_init();
 
-
-		while(seconds < max_seconds)
-	    {
-			ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
-			while (timer_flag == 0);
-			timer_flag = 0;
-
-			/*wait for algorithm to be enabled (controlled by board switch)
-	        user controls whether regular headphones listening mode, or antivoice mode */
-	        if(is_algorithm_enabled())
-	        {
-	            run_main_algorithm();
-	        }
-	        else
-	        {
-	            /*sleep to save power if possible / easy? */
-	        }
-
-	        /* Increment loop conditions */
-			if (++counter == SAMPLING_FREQUENCY) { ++seconds; counter = 0; }
-			iteration_count++;
-	    }
-	    timer_stop();
-
-		NORMAL_PRINT("Completed %u simulation iterations (samples).\n", iteration_count);
+	iteration_count = 0;
 
 
-	    return 0;
+	while(seconds < max_seconds)
+	{
+		ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+		while (timer_flag == 0);
+		timer_flag = 0;
+
+		/*wait for algorithm to be enabled (controlled by board switch)
+		user controls whether regular headphones listening mode, or antivoice mode */
+		if(is_algorithm_enabled())
+		{
+			/*TODO: synchronize so that this runs exactly every 1/8000th of a second */
+			run_main_algorithm();
+		}
+		else
+		{
+			/*sleep to save power if possible / easy? */
+		}
+
+		/* Increment loop conditions */
+		if (++counter == SAMPLING_FREQUENCY) { ++seconds; counter = 0; }
+		iteration_count++;
+	}
+	timer_stop();
+
+	NORMAL_PRINT("Completed %u simulation iterations (samples).\n", iteration_count);
+
+
+	return 0;
 }
 
 #define NUM_COMMANDS (5)
