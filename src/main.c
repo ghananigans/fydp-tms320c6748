@@ -29,6 +29,8 @@
 #define CHANNELB_POWER DAC_POWER_ON_CHANNEL_6
 #define CHANNELB DAC_ADDRESS_CHANNEL_6
 
+#define MIC_TO_DAC_AMPLIFICATION_FACTOR (2)
+
 #ifndef PI
 #define PI (3.14159265358979323846)
 #endif
@@ -263,10 +265,12 @@ play_mic_to_dac (
         //
         // This adds a Vref/2 DC offset
         //
-        ret_val = dac_update(CHANNELA, (uint16_t)((mic_data[0] + 32767) & 0xFFFF), 1);
+        ret_val = dac_update(CHANNELA,
+                (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[0]) + 32767) & 0xFFFF), 1);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-        ret_val = dac_update(CHANNELB, (uint16_t)((mic_data[1] + 32767) & 0xFFFF), 1);
+        ret_val = dac_update(CHANNELB,
+                (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[1]) + 32767) & 0xFFFF), 1);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
         if (++counter == SAMPLING_FREQUENCY)
