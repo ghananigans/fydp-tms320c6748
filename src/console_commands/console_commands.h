@@ -33,8 +33,21 @@ console_commands_init (
     );
 
 int
+console_commands_calibrate_init (
+		console_command_t const * const commands,
+		unsigned int const num_commands
+		);
+
+int
+console_commands_calibrate (
+		char ** params,
+		unsigned int num_params
+		);
+
+int
 console_commands_run (
     void
     );
+
 
 #endif /* SRC_CONSOLE_COMMANDS_CONSOLE_COMMANDS_H_ */

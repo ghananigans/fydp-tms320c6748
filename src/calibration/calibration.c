@@ -65,7 +65,7 @@ float getCalibrationForFreq(unsigned int freqHz) {
 	return phase_array[index];
 }
 
-//theta is multiples of 2PI, i.e. newTheta = 90deg, we represent as newTheta = 0.5
+//theta is multiples of PI, i.e. newTheta = 90deg, we represent as newTheta = 0.5
 float getEquivalentPhase(float theta) {
 	while (theta - 2 > 0){
 		theta -= 2;

@@ -7,11 +7,13 @@
 
 #include "../config.h"
 #include "../util.h"
+#include "../calibration/calibration.h"
 #include "console_commands.h"
 #include <stdbool.h>
 #include <string.h>
 
 #define BUFFER_SIZE              (101)
+#define CAL_BUFFER_SIZE          (2)
 #define TOKEN_DELIMITER          (" ")
 #define MAX_PARAMS               (10)
 #define HELP_COMMAND_CMD         ("help")
@@ -24,6 +26,10 @@
 static bool init_done = 0;
 static console_command_t const * all_commands = 0;
 static unsigned int num_all_commands = 0;
+
+static bool cal_init_done = 0;
+static console_command_t const * cal_commands = 0;
+static unsigned int num_cal_commands = 0;
 
 static
 void
@@ -64,6 +70,81 @@ console_commands_init (
     num_all_commands = num_commands;
 
     return CONSOLE_COMMANDS_OK;
+}
+
+int
+console_commands_calibrate_init (
+		console_command_t const * const commands,
+		unsigned int const num_commands
+		)
+{
+    if (init_done)
+    {
+        DEBUG_PRINT("Cal commands already initialized!\n");
+        return CONSOLE_COMMANDS_ALREADY_INITIALIZED;
+    }
+
+	DEBUG_PRINT("Setting up calibration shell with new tone...\n");
+
+	initPhaseArray();
+	cal_commands = commands;
+	num_cal_commands = num_commands;
+
+	return CONSOLE_COMMANDS_OK;
+}
+
+int
+console_commands_calibrate (
+	char ** params,
+    unsigned int num_params
+	)
+{
+	char buffer[BUFFER_SIZE];
+	char * command_token;
+	unsigned int freqHz;
+	unsigned int duration;
+	float phase;
+	float bestPhase;
+
+	freqHz = atoi(params[0]);
+	if (num_params == 2){
+		duration = atoi(params[1]);
+	} else {
+		duration = 2; //play for 2 seconds if duration not specified
+	}
+
+	phase = 0.0;
+
+	while(phase < 2)
+	{
+		NORMAL_PRINT("Enter a command: > ");
+        NORMAL_READ((char *) &buffer, BUFFER_SIZE);
+        NORMAL_PRINT("\n");
+
+        command_token = strtok(buffer, TOKEN_DELIMITER);
+        if (strcmp(command_token, "n") == 0){
+        	//Rishi's code to change phase
+        	//TODO play tone
+        	phase = phase + PHASE_INTERVAL_SIZE;
+        	continue;
+        }
+        else if (strcmp(command_token, "r") == 0) {
+        	continue;
+        }
+        else if (strcmp(command_token, "q") == 0) {
+        	break;
+        } else {
+        	NORMAL_PRINT("Invalid command given. The valid commands are 'n', 'r' and 'q'\n");
+        	continue;
+        }
+	}
+
+	NORMAL_PRINT("Enter the phase value found to give the best reductions: > ");
+	NORMAL_READ((char *) &buffer, BUFFER_SIZE);
+	sscanf(buffer, "%f", &bestPhase);
+	updateCalibrationForFreq(freqHz, bestPhase);
+
+	return CONSOLE_COMMANDS_OK;
 }
 
 int
@@ -117,7 +198,12 @@ console_commands_run (
                         }
                     }
 
-                    ret_val = all_commands[i].func((char **) &params, j);
+                    if (strcmp(command_token, "cal") == 0){
+                    	ret_val = console_commands_calibrate((char **) &params, j);
+                    } else {
+                    	ret_val = all_commands[i].func((char **) &params, j);
+                    }
+
 
                     if (ret_val == 0)
                     {

@@ -247,6 +247,7 @@ play_mic_to_dac (
 }
 
 #define NUM_COMMANDS (4)
+#define NUM_CAL_COMMANDS (3)
 
 int
 main (
@@ -254,6 +255,23 @@ main (
     )
 {
     int ret_val;
+    console_command_t const cal_commands[NUM_CAL_COMMANDS] = {
+    		{
+    			(char *) "n", // command token
+				(char *) "Command to play the next phase increment.\n",
+				(console_command_func_t) (0)//TODO
+    		},
+			{
+				(char *) "r", //command token
+				(char *) "Command to replay the tone with the current phase difference.\n",
+				(console_command_func_t) (0)//TODO
+			},
+			{
+				(char *) "q", // command token
+				(char *) "Exit calibration shell, back to main shell.\n",
+				(console_command_func_t) (0)//TODO
+			},
+    };
     console_command_t const commands[NUM_COMMANDS] = {
         {   // 0
             (char *) "test", // command_token
@@ -279,6 +297,12 @@ main (
                 "Usage: play-mic-to-dac <number of seconds>\n",
             (console_command_func_t) &play_mic_to_dac
         },
+		{
+			(char *) "cal",
+			(char *) "Enter the calibration shell.\n        "
+				"Usage: cal <frequencyHz of Tone>\n",
+			(console_command_func_t) (0)//TODO
+		}
     };
 
     /*
