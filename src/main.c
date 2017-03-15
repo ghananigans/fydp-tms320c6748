@@ -23,8 +23,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
-#define CHANNEL DAC_ADDRESS_CHANNEL_7
+
+#define CHANNELA_POWER DAC_POWER_ON_CHANNEL_7
+#define CHANNELA DAC_ADDRESS_CHANNEL_7
+#define CHANNELB_POWER DAC_POWER_ON_CHANNEL_6
+#define CHANNELB DAC_ADDRESS_CHANNEL_6
 
 #ifndef PI
 #define PI (3.14159265358979323846)
@@ -146,7 +149,10 @@ play_single_tone (
         while (timer_flag == 0);
         timer_flag = 0;
 
-        ret_val = dac_update(CHANNEL, val[i], 0);
+        ret_val = dac_update(CHANNELA, val[i], 0);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        ret_val = dac_update(CHANNELB, val[i], 0);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
         if (++i == max_samples)
@@ -257,7 +263,10 @@ play_mic_to_dac (
         //
         // This adds a Vref/2 DC offset
         //
-        ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF), 1);
+        ret_val = dac_update(CHANNELA, (uint16_t)((mic_data[0] + 32767) & 0xFFFF), 1);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        ret_val = dac_update(CHANNELB, (uint16_t)((mic_data[1] + 32767) & 0xFFFF), 1);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
         if (++counter == SAMPLING_FREQUENCY)
@@ -422,7 +431,7 @@ main (
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
     // Power on dac channel
-    ret_val = dac_power_up(CHANNEL_POWER, 1);
+    ret_val = dac_power_up(CHANNELA_POWER | CHANNELB_POWER, 1);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
 #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
