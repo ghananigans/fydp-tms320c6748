@@ -15,11 +15,13 @@
 #include "edma3_wrapper/edma3_wrapper.h"
 #include "mcasp_wrapper/mcasp_wrapper.h"
 #include "console_commands/console_commands.h"
+#include "calibration/calibration.h"
 #include <stdbool.h>
 #include <time.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
 #define CHANNEL DAC_ADDRESS_CHANNEL_7
@@ -27,6 +29,7 @@
 #ifndef PI
 #define PI (3.14159265358979323846)
 #endif
+#define CAL_BUFFER_SIZE          (2)
 
 //
 // Output frequency of DAC
@@ -246,7 +249,62 @@ play_mic_to_dac (
     return 0;
 }
 
-#define NUM_COMMANDS (4)
+int
+console_commands_calibrate (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    char buffer[CONSOLE_COMMANDS_BUFFER_SIZE];
+    char * command_token;
+    unsigned int freqHz;
+    unsigned int duration;
+    float phase;
+    float bestPhase;
+
+    freqHz = atoi(params[0]);
+    if (num_params == 2){
+        duration = atoi(params[1]);
+    } else {
+        duration = 2; //play for 2 seconds if duration not specified
+    }
+
+    phase = 0.0;
+
+    while(phase < 2)
+    {
+        NORMAL_PRINT("calibration: > ");
+        NORMAL_READ((char *) &buffer, CONSOLE_COMMANDS_BUFFER_SIZE);
+        NORMAL_PRINT("\n");
+
+        command_token = strtok(buffer, CONSOLE_COMMANDS_TOKEN_DELIMITER);
+        if (strcmp(command_token, "n") == 0){
+            //Rishi's code to change phase
+            //TODO play tone
+            phase = phase + PHASE_INTERVAL_SIZE;
+            continue;
+        }
+        else if (strcmp(command_token, "r") == 0) {
+            //TODO play tone
+            continue;
+        }
+        else if (strcmp(command_token, "q") == 0) {
+            break;
+        } else {
+            NORMAL_PRINT("Invalid command given. The valid commands are 'n', 'r' and 'q'\n");
+            continue;
+        }
+    }
+
+    NORMAL_PRINT("Enter the phase value found to give the best reductions: > ");
+    NORMAL_READ((char *) &buffer, CONSOLE_COMMANDS_BUFFER_SIZE);
+    sscanf(buffer, "%f", &bestPhase);
+    updateCalibrationForFreq(freqHz, bestPhase);
+
+    return CONSOLE_COMMANDS_OK;
+}
+
+#define NUM_COMMANDS (5)
 #define NUM_CAL_COMMANDS (3)
 
 int
@@ -255,23 +313,6 @@ main (
     )
 {
     int ret_val;
-    console_command_t const cal_commands[NUM_CAL_COMMANDS] = {
-    		{
-    			(char *) "n", // command token
-				(char *) "Command to play the next phase increment.\n",
-				(console_command_func_t) (0)//TODO
-    		},
-			{
-				(char *) "r", //command token
-				(char *) "Command to replay the tone with the current phase difference.\n",
-				(console_command_func_t) (0)//TODO
-			},
-			{
-				(char *) "q", // command token
-				(char *) "Exit calibration shell, back to main shell.\n",
-				(console_command_func_t) (0)//TODO
-			},
-    };
     console_command_t const commands[NUM_COMMANDS] = {
         {   // 0
             (char *) "test", // command_token
@@ -297,11 +338,11 @@ main (
                 "Usage: play-mic-to-dac <number of seconds>\n",
             (console_command_func_t) &play_mic_to_dac
         },
-		{
+		{   // 4
 			(char *) "cal",
 			(char *) "Enter the calibration shell.\n        "
 				"Usage: cal <frequencyHz of Tone>\n",
-			(console_command_func_t) (0)//TODO
+			(console_command_func_t) &console_commands_calibrate
 		}
     };
 
@@ -367,16 +408,15 @@ main (
     ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
 #endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
 
-    /*
-     * Init console command
-     */
-    ret_val = console_commands_init((console_command_t *) &commands, NUM_COMMANDS);
-    ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands init failed! (%d)\n", ret_val);
+    //
+    // Init phase array data structure for calibrations
+    //
+    initPhaseArray();
 
     /*
      * Do whatever commands tell us to do.
      */
-    ret_val = console_commands_run();
+    ret_val = console_commands_run(commands, NUM_COMMANDS);
     ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands run failed! (%d)\n", ret_val);
 
     /*

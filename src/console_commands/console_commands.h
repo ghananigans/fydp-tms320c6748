@@ -8,6 +8,16 @@
 #ifndef SRC_CONSOLE_COMMANDS_CONSOLE_COMMANDS_H_
 #define SRC_CONSOLE_COMMANDS_CONSOLE_COMMANDS_H_
 
+#define CONSOLE_COMMANDS_BUFFER_SIZE              (101)
+#define CONSOLE_COMMANDS_TOKEN_DELIMITER          (" ")
+#define CONSOLE_COMMANDS_MAX_PARAMS               (10)
+#define CONSOLE_COMMANDS_HELP_COMMAND_CMD         ("help")
+#define CONSOLE_COMMANDS_HELP_COMMAND_DESCRIPTION ("Print all commands.\n" \
+                "        Usage: help\n")
+#define CONSOLE_COMMANDS_QUIT_COMMAND_CMD         ("quit")
+#define CONSOLE_COMMANDS_QUIT_COMMAND_DESCRIPTION ("Quit this command processing shell.\n" \
+                "        Usage: quit\n")
+
 enum CONSOLE_COMMANDS_ERROR_CODES
 {
     CONSOLE_COMMANDS_OK,
@@ -27,26 +37,9 @@ typedef struct _console_command_t
 } console_command_t;
 
 int
-console_commands_init (
+console_commands_run (
     console_command_t const * const commands,
     unsigned int const num_commands
-    );
-
-int
-console_commands_calibrate_init (
-		console_command_t const * const commands,
-		unsigned int const num_commands
-		);
-
-int
-console_commands_calibrate (
-		char ** params,
-		unsigned int num_params
-		);
-
-int
-console_commands_run (
-    void
     );
 
 
