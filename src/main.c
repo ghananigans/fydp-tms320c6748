@@ -260,7 +260,8 @@ static int run_antivoice(char ** params,
 	switch does not have effect during normal mode of operation (likely accidental if switched)*/
 	if(is_calibration_enabled())
 	{
-		/*TODO: this currently just sets some default values and no real calibration. */
+		/*TODO: this currently just sets some default values and no real calibration.
+		 * May want to move to a separate command function, but we'll always to ensure the data structures are initialized before running antivoice!*/
 		run_calibration();
 		/*TODO: perhaps have a pause here? */
 	}

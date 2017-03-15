@@ -10,7 +10,7 @@
 	*/
 speakerout_t convert_float_to_speakerout(float f)
 {
-	/* We add 1 since it's unsigned number we are converting to and the number can be purely positive*/
+	/* We add 1 since it's unsigned number we are converting to and the number should become purely non-negative*/
 	f = (f + 1);
 	/* We now have f between 0 and 2.  Scale up to be between 0 and SPEAKEROUT_MAX_VAL. */
 	f = f * (SPEAKEROUT_MAX_VAL / 2);
@@ -35,8 +35,8 @@ void send_speaker_output(audio_data_t audio_data[AUDIO_CHANNEL_COUNT])
 	{
 		out_samples[ch] = convert_float_to_speakerout(audio_data[ch].y[SPEAKEROUT_CHOSEN_SAMPLE * 2]);
 
-		/* This adds a Vref/2 DC offset */
-		ret_val = dac_update(ch, (uint16_t)((out_samples[ch] + 32767) & 0xFFFF), 1);
+		/* NOTE: Vref/2 DC offset for int16_t to uint16_t has already been considered when mic data was parsed and no need to add 32676 here*/
+		ret_val = dac_update(ch, out_samples[ch], 1);
 		ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 	}
 

@@ -13,18 +13,14 @@ float convert_rawmic_to_float(rawmic_t data)
 {
 	/* scaling required for it to be valid FFT input
 		http://stackoverflow.com/questions/15087668/how-to-convert-pcm-samples-in-byte-array-as-floating-point-numbers-in-the-range
-		This mentions after the cast, divide by uint32_t MAX , and then when about to create speaker output should multiply back.
-		Also verified matlab audioread function uses similar strategy, our MATLAB simulation used floats in the range of -1 to 1 (not integer).
+		This mentions after the cast, divide by int16_t MAX , and then when about to create speaker output should multiply back.
+		Also verified matlab audioread function uses similar strategy, our MATLAB simulation used floats in the range of -1.0f to 1.0f
 	*/
 	float f;
-	/* NOTE: in HW we may find that we are over-dividing here and may want to divide by something like RAWMIC_MAX_VAL/2 */
-	/* yields f in the range of 0 and RAWMIC_UPPER_BOUND */
+
+	/* yields f in the range of -RAWMIC_UPPER_BOUND and +RAWMIC_UPPER_BOUND and therefore the signal is zero-centered*/
 	f = ((float) data) /((float) RAWMIC_SCALE_DOWN);
 
-	/* We make the signal zero-centered so that there can be negative numbers as well */
-	f = f - RAWMIC_UPPER_BOUND / 2;
-
-	/*f is a value between -RAWMIC_UPPER_BOUND/2 and +RAWMIC_UPPER_BOUND/2 */
 	return f;
 }
 
@@ -33,14 +29,17 @@ void get_mic_data_float(float mic_data_float[AUDIO_CHANNEL_COUNT])
 {
 	unsigned int i;
 	int ret_val;
+	uint32_t bufferdata[2];
 	rawmic_t rawdata[2];
 
 	/* Gets the reading from the microphone */
-	ret_val = mcasp_latest_rx_data((uint32_t *) &rawdata);
+	ret_val = mcasp_latest_rx_data((uint32_t *) &bufferdata);
 	ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
+
 
 	for(i = 0; i < AUDIO_CHANNEL_COUNT; i++)
 	{
+		rawdata[i] = (int16_t) (bufferdata[i] & 0xFFFF);
 		mic_data_float[i] = convert_rawmic_to_float(rawdata[i]);
 	}
 }
