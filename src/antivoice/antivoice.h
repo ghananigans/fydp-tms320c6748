@@ -65,10 +65,8 @@ void run_main_algorithm()
         /* copy X to Y, we leave X untouched for debugging purposes */
         memcpy(audio_data[ch].Y, audio_data[ch].X, M*sizeof(float));
 
-        /* Apply corresponding phase adjustments to Y */
-        /*TODO: change to apply_mag_phase_adj() once we figure out how to apply mag adjustments properly
-            for a complex number in the freq domain */
-        apply_phase_adj(audio_data[ch].Y);
+        /* Apply corresponding mag & phase adjustments to Y */
+        apply_mag_phase_adj(audio_data[ch].Y);
 
         /*Take ifft of Y to get output y in time domain */
         ifft_wrap(audio_data[ch].Y,audio_data[ch].y);
