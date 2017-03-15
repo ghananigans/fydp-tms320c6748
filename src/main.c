@@ -15,33 +15,36 @@
 #include "edma3_wrapper/edma3_wrapper.h"
 #include "mcasp_wrapper/mcasp_wrapper.h"
 #include "console_commands/console_commands.h"
+#include "calibration/calibration.h"
 #include <stdbool.h>
 #include <time.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define CHANNEL_POWER DAC_POWER_ON_CHANNEL_7
-#define CHANNEL DAC_ADDRESS_CHANNEL_7
+
+#define CHANNELA_POWER DAC_POWER_ON_CHANNEL_7
+#define CHANNELA DAC_ADDRESS_CHANNEL_7
+#define CHANNELB_POWER DAC_POWER_ON_CHANNEL_6
+#define CHANNELB DAC_ADDRESS_CHANNEL_6
+
+#define MIC_TO_DAC_AMPLIFICATION_FACTOR (2)
 
 #ifndef PI
 #define PI (3.14159265358979323846)
 #endif
+#define CAL_BUFFER_SIZE          (2)
 
 //
 // Output frequency of DAC
 //
 #define SAMPLING_FREQUENCY (8000)
 
-//
-// Single tone frequency
-//
-#define COS_FREQ           (500)
 
 //
 // Do not touch the below two
 //
-#define NUM_SAMPLES        (SAMPLING_FREQUENCY / COS_FREQ)
 #define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
 
 static bool volatile timer_flag = 0;
@@ -86,32 +89,59 @@ play_single_tone (
     int i;
     unsigned int counter;
     unsigned int max_seconds;
+    unsigned int frequency;
     unsigned int seconds;
-    double x;
-    double y;
-    uint16_t val[NUM_SAMPLES];
+    float x;
+    float y;
+    uint16_t val[80];
+    unsigned int max_samples;
 
     NORMAL_PRINT("Play single tone command\n");
 
     //
+    // Frequency of single tone (support only 100hz - 1000hz)
+    //
+    frequency = atoi(params[0]);
+    max_samples = SAMPLING_FREQUENCY / frequency;
+
+    //
     // Max number of seconds is done by first param
     //
-    max_seconds = atoi(params[0]);
+    max_seconds = atoi(params[1]);
     counter = 0;
     seconds = 0;
 
     NORMAL_PRINT("    Playing single tone of %d Hz with a sampling frequency of %d Hz "
-            "for %d seconds\n", COS_FREQ, SAMPLING_FREQUENCY, max_seconds);
+            "for %d seconds. There are %d samples per period.\n",
+            frequency, SAMPLING_FREQUENCY, max_seconds, max_samples);
+
+    if (frequency < 100 || frequency > 1000)
+    {
+        ERROR_PRINT("Invalid frequency... "
+                    "(frequency bust be between 100Hz and 1000Hz, inclusive!!\n");
+        return 1;
+    }
+
+    if (max_samples == 0)
+    {
+        ERROR_PRINT("No samples to play the single tone... "
+                "(frequency might be too high compared with sampling frequency!!\n");
+        //
+        // Not enough samples
+        //
+        return 2;
+    }
 
     /*
      * Pre calculate samples for simple sinusoid output to dac.
      */
-    x = 0;
-    for (i = 0; i < NUM_SAMPLES; ++i)
+    x = 0.0f;
+    for (i = 0; i < max_samples; ++i)
     {
-        y = (cos(2 * COS_FREQ * PI * x) + 1) * 32767;
-        x += 1.0 / SAMPLING_FREQUENCY;
+        y = (cos(2 * frequency * PI * x) + 1.0f) * 32767;
+        x += 1.0f / SAMPLING_FREQUENCY;
         val[i] = (uint16_t) y;
+        NORMAL_PRINT("Sample %d = %d\n", i, val[i]);
     }
 
     timer_start();
@@ -121,10 +151,13 @@ play_single_tone (
         while (timer_flag == 0);
         timer_flag = 0;
 
-        ret_val = dac_update(CHANNEL, val[i], 0);
+        ret_val = dac_update(CHANNELA, val[i], 0);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-        if (++i == NUM_SAMPLES)
+        ret_val = dac_update(CHANNELB, val[i], 0);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        if (++i == max_samples)
         {
             i = 0;
         }
@@ -232,7 +265,12 @@ play_mic_to_dac (
         //
         // This adds a Vref/2 DC offset
         //
-        ret_val = dac_update(CHANNEL, (uint16_t)((mic_data[0] + 32767) & 0xFFFF), 1);
+        ret_val = dac_update(CHANNELA,
+                (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[0]) + 32767) & 0xFFFF), 1);
+        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+
+        ret_val = dac_update(CHANNELB,
+                (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[1]) + 32767) & 0xFFFF), 1);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
         if (++counter == SAMPLING_FREQUENCY)
@@ -246,7 +284,63 @@ play_mic_to_dac (
     return 0;
 }
 
-#define NUM_COMMANDS (4)
+int
+console_commands_calibrate (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    char buffer[CONSOLE_COMMANDS_BUFFER_SIZE];
+    char * command_token;
+    unsigned int freqHz;
+    unsigned int duration;
+    float phase;
+    float bestPhase;
+
+    freqHz = atoi(params[0]);
+    if (num_params == 2){
+        duration = atoi(params[1]);
+    } else {
+        duration = 2; //play for 2 seconds if duration not specified
+    }
+
+    phase = 0.0;
+
+    while(phase < 2)
+    {
+        NORMAL_PRINT("calibration: > ");
+        NORMAL_READ((char *) &buffer, CONSOLE_COMMANDS_BUFFER_SIZE);
+        NORMAL_PRINT("\n");
+
+        command_token = strtok(buffer, CONSOLE_COMMANDS_TOKEN_DELIMITER);
+        if (strcmp(command_token, "n") == 0){
+            //Rishi's code to change phase
+            //TODO play tone
+            phase = phase + PHASE_INTERVAL_SIZE;
+            continue;
+        }
+        else if (strcmp(command_token, "r") == 0) {
+            //TODO play tone
+            continue;
+        }
+        else if (strcmp(command_token, "q") == 0) {
+            break;
+        } else {
+            NORMAL_PRINT("Invalid command given. The valid commands are 'n', 'r' and 'q'\n");
+            continue;
+        }
+    }
+
+    NORMAL_PRINT("Enter the phase value found to give the best reductions: > ");
+    NORMAL_READ((char *) &buffer, CONSOLE_COMMANDS_BUFFER_SIZE);
+    sscanf(buffer, "%f", &bestPhase);
+    updateCalibrationForFreq(freqHz, bestPhase);
+
+    return CONSOLE_COMMANDS_OK;
+}
+
+#define NUM_COMMANDS (5)
+#define NUM_CAL_COMMANDS (3)
 
 int
 main (
@@ -264,7 +358,7 @@ main (
         {   // 1
             (char *) "play-single-tone",
             (char *) "Command to play a single tone.\n        "
-                "Usage: play-single-tone <number of seconds>\n",
+                "Usage: play-single-tone <frequency> <number of seconds>\n",
             (console_command_func_t) &play_single_tone
         },
         {   // 2
@@ -279,6 +373,12 @@ main (
                 "Usage: play-mic-to-dac <number of seconds>\n",
             (console_command_func_t) &play_mic_to_dac
         },
+		{   // 4
+			(char *) "cal",
+			(char *) "Enter the calibration shell.\n        "
+				"Usage: cal <frequencyHz of Tone>\n",
+			(console_command_func_t) &console_commands_calibrate
+		}
     };
 
     /*
@@ -335,7 +435,7 @@ main (
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
     // Power on dac channel
-    ret_val = dac_power_up(CHANNEL_POWER, 1);
+    ret_val = dac_power_up(CHANNELA_POWER | CHANNELB_POWER, 1);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
 #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
@@ -343,16 +443,15 @@ main (
     ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
 #endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
 
-    /*
-     * Init console command
-     */
-    ret_val = console_commands_init((console_command_t *) &commands, NUM_COMMANDS);
-    ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands init failed! (%d)\n", ret_val);
+    //
+    // Init phase array data structure for calibrations
+    //
+    initPhaseArray();
 
     /*
      * Do whatever commands tell us to do.
      */
-    ret_val = console_commands_run();
+    ret_val = console_commands_run(commands, NUM_COMMANDS);
     ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands run failed! (%d)\n", ret_val);
 
     /*
