@@ -36,15 +36,10 @@
 //
 #define SAMPLING_FREQUENCY (8000)
 
-//
-// Single tone frequency
-//
-#define COS_FREQ           (500)
 
 //
 // Do not touch the below two
 //
-#define NUM_SAMPLES        (SAMPLING_FREQUENCY / COS_FREQ)
 #define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
 
 static bool volatile timer_flag = 0;
@@ -89,32 +84,59 @@ play_single_tone (
     int i;
     unsigned int counter;
     unsigned int max_seconds;
+    unsigned int frequency;
     unsigned int seconds;
-    double x;
-    double y;
-    uint16_t val[NUM_SAMPLES];
+    float x;
+    float y;
+    uint16_t val[80];
+    unsigned int max_samples;
 
     NORMAL_PRINT("Play single tone command\n");
 
     //
+    // Frequency of single tone (support only 100hz - 1000hz)
+    //
+    frequency = atoi(params[0]);
+    max_samples = SAMPLING_FREQUENCY / frequency;
+
+    //
     // Max number of seconds is done by first param
     //
-    max_seconds = atoi(params[0]);
+    max_seconds = atoi(params[1]);
     counter = 0;
     seconds = 0;
 
     NORMAL_PRINT("    Playing single tone of %d Hz with a sampling frequency of %d Hz "
-            "for %d seconds\n", COS_FREQ, SAMPLING_FREQUENCY, max_seconds);
+            "for %d seconds. There are %d samples per period.\n",
+            frequency, SAMPLING_FREQUENCY, max_seconds, max_samples);
+
+    if (frequency < 100 || frequency > 1000)
+    {
+        ERROR_PRINT("Invalid frequency... "
+                    "(frequency bust be between 100Hz and 1000Hz, inclusive!!\n");
+        return 1;
+    }
+
+    if (max_samples == 0)
+    {
+        ERROR_PRINT("No samples to play the single tone... "
+                "(frequency might be too high compared with sampling frequency!!\n");
+        //
+        // Not enough samples
+        //
+        return 2;
+    }
 
     /*
      * Pre calculate samples for simple sinusoid output to dac.
      */
-    x = 0;
-    for (i = 0; i < NUM_SAMPLES; ++i)
+    x = 0.0f;
+    for (i = 0; i < max_samples; ++i)
     {
-        y = (cos(2 * COS_FREQ * PI * x) + 1) * 32767;
-        x += 1.0 / SAMPLING_FREQUENCY;
+        y = (cos(2 * frequency * PI * x) + 1.0f) * 32767;
+        x += 1.0f / SAMPLING_FREQUENCY;
         val[i] = (uint16_t) y;
+        NORMAL_PRINT("Sample %d = %d\n", i, val[i]);
     }
 
     timer_start();
@@ -127,7 +149,7 @@ play_single_tone (
         ret_val = dac_update(CHANNEL, val[i], 0);
         ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-        if (++i == NUM_SAMPLES)
+        if (++i == max_samples)
         {
             i = 0;
         }
@@ -323,7 +345,7 @@ main (
         {   // 1
             (char *) "play-single-tone",
             (char *) "Command to play a single tone.\n        "
-                "Usage: play-single-tone <number of seconds>\n",
+                "Usage: play-single-tone <frequency> <number of seconds>\n",
             (console_command_func_t) &play_single_tone
         },
         {   // 2
