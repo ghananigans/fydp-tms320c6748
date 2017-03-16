@@ -43,7 +43,7 @@
 #define NUM_I2S_CHANNELS                      (2u) 
 
 /* Number of samples to be used per audio buffer */
-#define NUM_SAMPLES_PER_AUDIO_BUF             (2u)
+#define NUM_SAMPLES_PER_AUDIO_BUF             (1u)
 
 /* Number of buffers used per tx/rx */
 #define NUM_BUF                               (3u)
@@ -80,11 +80,10 @@
                                                + (NUM_I2S_CHANNELS & 0x01))
 #define I2S_SLOTS                             ((1 << NUM_I2S_CHANNELS) - 1)
 
-#define BYTES_PER_SAMPLE                      ((WORD_SIZE >> 3) \
-                                               * NUM_I2S_CHANNELS)
+#define BYTES_PER_SAMPLE                      (sizeof(uint32_t))
 
 #define AUDIO_BUF_SIZE                        (NUM_SAMPLES_PER_AUDIO_BUF \
-                                               * BYTES_PER_SAMPLE)
+                                               * BYTES_PER_SAMPLE * NUM_I2S_CHANNELS)
 
 #define TX_DMA_INT_ENABLE                     (EDMA3CC_OPT_TCC_SET(1) | (1 \
                                                << EDMA3CC_OPT_TCINTEN_SHIFT))
@@ -109,17 +108,17 @@ static unsigned char loopBuf[NUM_SAMPLES_LOOP_BUF * BYTES_PER_SAMPLE] = {0};
 ** Transmit buffers. If any new buffer is to be added, define it here and 
 ** update the NUM_BUF.
 */
-static unsigned char txBuf0[AUDIO_BUF_SIZE];
-static unsigned char txBuf1[AUDIO_BUF_SIZE];
-static unsigned char txBuf2[AUDIO_BUF_SIZE];
+static uint32_t txBuf0[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
+static uint32_t txBuf1[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
+static uint32_t txBuf2[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
 
 /*
 ** Receive buffers. If any new buffer is to be added, define it here and 
 ** update the NUM_BUF.
 */
-static unsigned char rxBuf0[AUDIO_BUF_SIZE];
-static unsigned char rxBuf1[AUDIO_BUF_SIZE];
-static unsigned char rxBuf2[AUDIO_BUF_SIZE];
+static uint32_t volatile rxBuf0[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
+static uint32_t volatile rxBuf1[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
+static uint32_t volatile rxBuf2[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
 
 /*
 ** Next buffer to receive data. The data will be received in this buffer.
@@ -262,7 +261,7 @@ BufferRxDMAActivate (
     /* Enable completion interrupt */
     paramSet.opt |= RX_DMA_INT_ENABLE;
     paramSet.destAddr =  rxBufPtr[rxBuf];
-    paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
+    paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF * NUM_I2S_CHANNELS;
     paramSet.linkAddr = parLink * SIZE_PARAMSET ;
     EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
 }
@@ -517,18 +516,7 @@ I2SDMAParamInit (
         paramSet.linkAddr = (PAR_RX_START + ((idx + 1) % NUM_PAR))
                            * (SIZE_PARAMSET);
 
-        paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF;
-
-        /* 
-        ** for the first linked paRAM set, start receiving the second
-        ** sample only since the first sample is already received in
-        ** rx buffer 0 itself.
-        */
-        if( 0 == idx)
-        {
-            //paramSet.destAddr += BYTES_PER_SAMPLE;
-            //paramSet.bCnt -= BYTES_PER_SAMPLE;
-        }
+        paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF * NUM_I2S_CHANNELS;
 
         EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
     } 
