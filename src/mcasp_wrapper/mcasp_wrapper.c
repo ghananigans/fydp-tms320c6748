@@ -46,7 +46,7 @@
 #define NUM_SAMPLES_PER_AUDIO_BUF             (1u)
 
 /* Number of buffers used per tx/rx */
-#define NUM_BUF                               (3u)
+#define NUM_BUF                               (1u)
 
 /* Number of linked parameter set used per tx/rx */
 #define NUM_PAR                               (2u)
@@ -108,32 +108,13 @@ static unsigned char loopBuf[NUM_SAMPLES_LOOP_BUF * BYTES_PER_SAMPLE] = {0};
 ** Transmit buffers. If any new buffer is to be added, define it here and 
 ** update the NUM_BUF.
 */
-static uint32_t txBuf0[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
-static uint32_t txBuf1[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
-static uint32_t txBuf2[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
+static uint32_t txBuf[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
 
 /*
 ** Receive buffers. If any new buffer is to be added, define it here and 
 ** update the NUM_BUF.
 */
-static uint32_t volatile rxBuf0[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
-static uint32_t volatile rxBuf1[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
-static uint32_t volatile rxBuf2[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
-
-/*
-** Next buffer to receive data. The data will be received in this buffer.
-*/
-static volatile unsigned int nxtBufToRcv = 0;
-
-/*
-** The RX buffer which filled latest.
-*/
-static volatile unsigned int lastFullRxBuf = 0;
-
-/*
-** The offset of the paRAM ID, from the starting of the paRAM set.
-*/
-static volatile unsigned short parOffRcvd = 0;
+static uint32_t volatile rxBuf[NUM_SAMPLES_PER_AUDIO_BUF][NUM_I2S_CHANNELS];
 
 /*
 ** The offset of the paRAM ID sent, from starting of the paRAM set.
@@ -141,7 +122,7 @@ static volatile unsigned short parOffRcvd = 0;
 static volatile unsigned short parOffSent = 0;
 
 /*
-** The offset of the paRAM ID to be sent next, from starting of the paRAM set. 
+** The offset of the paRAM ID to be sent next, from starting of the paRAM set.
 */
 static volatile unsigned short parOffTxToSend = 0;
 
@@ -155,22 +136,6 @@ static bool init_done = 0;
 /******************************************************************************
 **                      INTERNAL CONSTATNT DEFINITIONS
 ******************************************************************************/
-/* Array of receive buffer pointers */
-static unsigned int const rxBufPtr[NUM_BUF] =
-       { 
-           (unsigned int) rxBuf0,
-           (unsigned int) rxBuf1,
-           (unsigned int) rxBuf2
-       };
-
-/* Array of transmit buffer pointers */
-static unsigned int const txBufPtr[NUM_BUF] =
-       { 
-           (unsigned int) txBuf0,
-           (unsigned int) txBuf1,
-           (unsigned int) txBuf2
-       };
-
 /*
 ** Default paRAM for Transmit section. This will be transmitting from 
 ** a loop buffer.
@@ -180,7 +145,7 @@ static struct EDMA3CCPaRAMEntry const txDefaultPar =
            (unsigned int)(EDMA3CC_OPT_DAM  | (0x02 << 8u)), /* Opt field */
            (unsigned int)loopBuf, /* source address */
            (unsigned short)(BYTES_PER_SAMPLE), /* aCnt */
-           (unsigned short)(NUM_SAMPLES_LOOP_BUF), /* bCnt */ 
+           (unsigned short)(NUM_SAMPLES_LOOP_BUF), /* bCnt */
            (unsigned int) SOC_MCASP_0_DATA_REGS, /* dest address */
            (short) (BYTES_PER_SAMPLE), /* source bIdx */
            (short)(0), /* dest bIdx */
@@ -196,11 +161,11 @@ static struct EDMA3CCPaRAMEntry const txDefaultPar =
 */
 static struct EDMA3CCPaRAMEntry const rxDefaultPar =
        {
-           (unsigned int)(EDMA3CC_OPT_SAM  | (0x02 << 8u)), /* Opt field */
+           (unsigned int)(EDMA3CC_OPT_SAM  | (0x02 << 8u) | RX_DMA_INT_ENABLE), /* Opt field */
            (unsigned int)SOC_MCASP_0_DATA_REGS, /* source address */
            (unsigned short)(BYTES_PER_SAMPLE), /* aCnt */
-           (unsigned short)(1), /* bCnt */
-           (unsigned int)rxBuf0, /* dest address */
+           (unsigned short)(NUM_SAMPLES_PER_AUDIO_BUF * NUM_I2S_CHANNELS), /* bCnt */
+           (unsigned int)rxBuf, /* dest address */
            (short) (0), /* source bIdx */
            (short)(BYTES_PER_SAMPLE), /* dest bIdx */
            (unsigned short)(PAR_RX_START * SIZE_PARAMSET), /* link address */
@@ -210,25 +175,25 @@ static struct EDMA3CCPaRAMEntry const rxDefaultPar =
            (unsigned short)1 /* cCnt */
        };
 
-
 /*
 ** Assigns loop job for a parameter set
 */
-static 
-void 
+static
+void
 ParamTxLoopJobSet (
-  unsigned short parId
-  )
+    unsigned short parId
+    )
 {
     EDMA3CCPaRAMEntry paramSet;
-    
+
     memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET - 2);
-  
+
     /* link the paRAM to itself */
     paramSet.linkAddr = parId * SIZE_PARAMSET;
 
     EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
 }
+
 
 /*
 ** Error ISR for McASP
@@ -243,38 +208,14 @@ mcasp_error_isr (
 }
 
 /*
-** Activates the DMA transfer for a parameter set from the given buffer.
-*/
-static 
-void 
-BufferRxDMAActivate (
-    unsigned int rxBuf, 
-    unsigned short parId,
-    unsigned short parLink
-    )
-{
-    EDMA3CCPaRAMEntry paramSet;
-
-    /* Copy the default paramset */
-    memcpy(&paramSet, &rxDefaultPar, SIZE_PARAMSET - 2);
-
-    /* Enable completion interrupt */
-    paramSet.opt |= RX_DMA_INT_ENABLE;
-    paramSet.destAddr =  rxBufPtr[rxBuf];
-    paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF * NUM_I2S_CHANNELS;
-    paramSet.linkAddr = parLink * SIZE_PARAMSET ;
-    EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
-}
-
-/*
 ** Activates the DMA transfer for a parameterset from the given buffer.
 */
 static
-void 
+void
 BufferTxDMAActivate (
-    unsigned int txBuf, 
+    unsigned int txBuf,
     unsigned short numSamples,
-    unsigned short parId, 
+    unsigned short parId,
     unsigned short linkPar
     )
 {
@@ -282,11 +223,11 @@ BufferTxDMAActivate (
 
     /* Copy the default paramset */
     memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET - 2);
-    
+
     /* Enable completion interrupt */
     paramSet.opt |= TX_DMA_INT_ENABLE;
-    paramSet.srcAddr =  txBufPtr[txBuf];
-    paramSet.linkAddr = linkPar * SIZE_PARAMSET;  
+    paramSet.srcAddr =  txBuf;
+    paramSet.linkAddr = linkPar * SIZE_PARAMSET;
     paramSet.bCnt = numSamples;
 
     EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, parId, &paramSet);
@@ -299,28 +240,9 @@ static
 void 
 McASPRxDMAComplHandler (
     unsigned int tcc_num,
-  unsigned int status
+    unsigned int status
     )
 {
-    unsigned short nxtParToUpdate;
-
-    /*
-    ** Update lastFullRxBuf to indicate a new buffer reception
-    ** is completed.
-    */
-    lastFullRxBuf = (lastFullRxBuf + 1) % NUM_BUF;
-    nxtParToUpdate =  PAR_RX_START + parOffRcvd;  
-    parOffRcvd = (parOffRcvd + 1) % NUM_PAR;
- 
-    /*
-    ** Update the DMA parameters for the received buffer to receive
-    ** further data in proper buffer
-    */
-    BufferRxDMAActivate(nxtBufToRcv, nxtParToUpdate,
-                        PAR_RX_START + parOffRcvd);
-    
-    /* update the next buffer to receive data */ 
-    nxtBufToRcv = (nxtBufToRcv + 1) % NUM_BUF;
 }
 
 /*
@@ -330,7 +252,7 @@ static
 void 
 McASPTxDMAComplHandler (
     unsigned int tcc_num,
-  unsigned int status
+    unsigned int status
     )
 {
     ParamTxLoopJobSet((unsigned short)(PAR_TX_START + parOffSent));
@@ -505,28 +427,16 @@ I2SDMAParamInit (
     memcpy(&paramSet, &rxDefaultPar, SIZE_PARAMSET - 2);
 
     EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_RX, &paramSet);
-
-    /* further paramsets, enable interrupt */
-    paramSet.opt |= RX_DMA_INT_ENABLE; 
  
     for(idx = 0 ; idx < NUM_PAR; idx++)
     {
-        paramSet.destAddr = rxBufPtr[idx];
-
         paramSet.linkAddr = (PAR_RX_START + ((idx + 1) % NUM_PAR))
                            * (SIZE_PARAMSET);
 
-        paramSet.bCnt =  NUM_SAMPLES_PER_AUDIO_BUF * NUM_I2S_CHANNELS;
-
         EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, (PAR_RX_START + idx), &paramSet);
-    } 
+    }
 
-    /* Initialize the required variables for reception */
-    nxtBufToRcv = idx % NUM_BUF;
-    lastFullRxBuf = NUM_BUF - 1;
-    parOffRcvd = 0;
-
-    /* Initialize the 1st paRAM set for transmit */ 
+    /* Initialize the 1st paRAM set for transmit */
     memcpy(&paramSet, &txDefaultPar, SIZE_PARAMSET);
 
     EDMA3SetPaRAM(SOC_EDMA30CC_0_REGS, EDMA3_CHA_MCASP0_TX, &paramSet);
@@ -536,10 +446,10 @@ I2SDMAParamInit (
     {
         ParamTxLoopJobSet(PAR_TX_START + idx);
     }
- 
+
     /* Initialize the variables for transmit */
     parOffSent = 0;
-    lastSentTxBuf = NUM_BUF - 1; 
+    lastSentTxBuf = NUM_BUF - 1;
 }
 
 int
@@ -624,7 +534,7 @@ mcasp_latest_rx_data (
     uint32_t * ptr
     )
 {
-    memcpy((void *) ptr, (void *) rxBufPtr[lastFullRxBuf], (size_t) AUDIO_BUF_SIZE);
+    memcpy((void *) ptr, (void *) rxBuf, (size_t) AUDIO_BUF_SIZE);
     return MCASP_OK;
 }
 
@@ -638,23 +548,24 @@ mcasp_loopback_test (
 
     DEBUG_PRINT("Loopback Test\n");
     /*
-    ** Looop forever. if a new buffer is received, the lastFullRxBuf will be 
-    ** updated in the rx completion ISR. if it is not the lastSentTxBuf, 
+    ** Looop forever. if a new buffer is received, the lastFullRxBuf will be
+    ** updated in the rx completion ISR. if it is not the lastSentTxBuf,
     ** buffer is to be sent. This has to be mapped to proper paRAM set.
     */
+#if 0
     while(1)
     {
         if(lastFullRxBuf != lastSentTxBuf)
-        {  
+        {
             /*
-            ** Start the transmission from the link paramset. The param set 
-            ** 1 will be linked to param set at PAR_TX_START. So do not 
+            ** Start the transmission from the link paramset. The param set
+            ** 1 will be linked to param set at PAR_TX_START. So do not
             ** update paRAM set1.
-            */ 
+            */
             parToSend =  PAR_TX_START + (parOffTxToSend % NUM_PAR);
             parOffTxToSend = (parOffTxToSend + 1) % NUM_PAR;
-            parToLink  = PAR_TX_START + parOffTxToSend; 
- 
+            parToLink  = PAR_TX_START + parOffTxToSend;
+
             lastSentTxBuf = (lastSentTxBuf + 1) % NUM_BUF;
 
             /* Copy the buffer */
@@ -665,7 +576,7 @@ mcasp_loopback_test (
             /*
             ** Send the buffer by setting the DMA params accordingly.
             ** Here the buffer to send and number of samples are passed as
-            ** parameters. This is important, if only transmit section 
+            ** parameters. This is important, if only transmit section
             ** is to be used.
             */
             BufferTxDMAActivate(lastSentTxBuf, NUM_SAMPLES_PER_AUDIO_BUF,
@@ -673,4 +584,5 @@ mcasp_loopback_test (
                                 (unsigned short)parToLink);
         }
     }
+#endif
 }
