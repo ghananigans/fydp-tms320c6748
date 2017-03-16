@@ -409,13 +409,6 @@ main (
     ret_val = mcasp_init();
     ASSERT(ret_val == DAC_OK, "McASP init failed! (%d)\n", ret_val);
 
-#ifdef MCASP_LOOPBACK_TEST
-    /*
-     * Loop back test for McASP
-     */
-    mcasp_loopback_test();
-#endif
-
     /*
      * Init spi.
      */
