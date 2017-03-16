@@ -29,7 +29,7 @@
 #define CHANNELB_POWER DAC_POWER_ON_CHANNEL_6
 #define CHANNELB DAC_ADDRESS_CHANNEL_6
 
-#define MIC_TO_DAC_AMPLIFICATION_FACTOR (2)
+#define MIC_TO_DAC_AMPLIFICATION_FACTOR (1)
 
 #ifndef PI
 #define PI (3.14159265358979323846)
@@ -408,13 +408,6 @@ main (
      */
     ret_val = mcasp_init();
     ASSERT(ret_val == DAC_OK, "McASP init failed! (%d)\n", ret_val);
-
-#ifdef MCASP_LOOPBACK_TEST
-    /*
-     * Loop back test for McASP
-     */
-    mcasp_loopback_test();
-#endif
 
     /*
      * Init spi.
