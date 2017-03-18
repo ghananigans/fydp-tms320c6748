@@ -416,7 +416,7 @@ print_commblocker_ascii_art (
     return 0;
 }
 
-#define NUM_COMMANDS (5)
+#define NUM_COMMANDS (6)
 #define NUM_CAL_COMMANDS (3)
 
 int
