@@ -150,6 +150,8 @@ play_single_tone (
         NORMAL_PRINT("Sample %d = %d\n", i, val[i]);
     }
 
+    i = 0;
+
     timer_flag = 0;
     timer_start();
     while (seconds < max_seconds)
