@@ -24,10 +24,14 @@
 #include <string.h>
 
 
-#define CHANNELA_POWER DAC_POWER_ON_CHANNEL_7
-#define CHANNELA DAC_ADDRESS_CHANNEL_7
-#define CHANNELB_POWER DAC_POWER_ON_CHANNEL_6
-#define CHANNELB DAC_ADDRESS_CHANNEL_6
+#define CHANNEL_LL_POWER DAC_POWER_ON_CHANNEL_6
+#define CHANNEL_LL DAC_ADDRESS_CHANNEL_6
+#define CHANNEL_LC_POWER DAC_POWER_ON_CHANNEL_2
+#define CHANNEL_LC DAC_ADDRESS_CHANNEL_2
+#define CHANNEL_RC_POWER DAC_POWER_ON_CHANNEL_1
+#define CHANNEL_RC DAC_ADDRESS_CHANNEL_1
+#define CHANNEL_RR_POWER DAC_POWER_ON_CHANNEL_5
+#define CHANNEL_RR DAC_ADDRESS_CHANNEL_5
 
 #define MIC_TO_DAC_AMPLIFICATION_FACTOR (1)
 
@@ -95,6 +99,7 @@ play_single_tone (
     float y;
     uint16_t val[80];
     unsigned int max_samples;
+    uint8_t channel_select;
 
     NORMAL_PRINT("Play single tone command\n");
 
@@ -110,10 +115,11 @@ play_single_tone (
     max_seconds = atoi(params[1]);
     counter = 0;
     seconds = 0;
+    channel_select = (atoi(params[1]) & 0xF);
 
     NORMAL_PRINT("    Playing single tone of %d Hz with a sampling frequency of %d Hz "
-            "for %d seconds. There are %d samples per period.\n",
-            frequency, SAMPLING_FREQUENCY, max_seconds, max_samples);
+            "for %d seconds. There are %d samples per period. DAC channel select is 0x%x.\n",
+            frequency, SAMPLING_FREQUENCY, max_seconds, max_samples, channel_select);
 
     if (frequency < 100 || frequency > 1000)
     {
@@ -144,6 +150,7 @@ play_single_tone (
         NORMAL_PRINT("Sample %d = %d\n", i, val[i]);
     }
 
+    timer_flag = 0;
     timer_start();
     while (seconds < max_seconds)
     {
@@ -151,11 +158,29 @@ play_single_tone (
         while (timer_flag == 0);
         timer_flag = 0;
 
-        ret_val = dac_update(CHANNELA, val[i], 0);
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        if (channel_select & 0x1)
+        {
+            ret_val = dac_update(CHANNEL_RR, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
 
-        ret_val = dac_update(CHANNELB, val[i], 0);
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        if (channel_select & 0x2)
+        {
+            ret_val = dac_update(CHANNEL_RC, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x4)
+        {
+            ret_val = dac_update(CHANNEL_LC, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x8)
+        {
+            ret_val = dac_update(CHANNEL_LL, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
 
         if (++i == max_samples)
         {
@@ -239,6 +264,7 @@ play_mic_to_dac (
     unsigned int counter;
     unsigned int max_seconds;
     unsigned int seconds;
+    uint8_t channel_select;
 
     NORMAL_PRINT("Play mic to dac command\n");
 
@@ -248,10 +274,12 @@ play_mic_to_dac (
     max_seconds = atoi(params[0]);
     counter = 0;
     seconds = 0;
+    channel_select = (atoi(params[1]) & 0xF);
 
-    NORMAL_PRINT("Playing mic to data for %d seconds (outputting at a frequency of %d Hz)\n",
-            max_seconds, SAMPLING_FREQUENCY);
+    NORMAL_PRINT("Playing mic to data for %d seconds (outputting at a frequency of %d Hz)"
+            " and DAC channel select of 0x%x\n", max_seconds, SAMPLING_FREQUENCY, channel_select);
 
+    timer_flag = 0;
     timer_start();
     while (seconds < max_seconds)
     {
@@ -262,16 +290,37 @@ play_mic_to_dac (
         ret_val = mcasp_latest_rx_data((uint32_t *) &mic_data);
         ASSERT(ret_val == MCASP_OK, "MCASP getting latest rx data failed! (%d)\n", ret_val);
 
-        //
-        // This adds a Vref/2 DC offset
-        //
-        ret_val = dac_update(CHANNELA,
-                (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[0]) + 32767) & 0xFFFF), 1);
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 
-        ret_val = dac_update(CHANNELB,
-                (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[1]) + 32767) & 0xFFFF), 1);
-        ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        if (channel_select & 0x1)
+        {
+            //
+            // This adds a Vref/2 DC offset
+            //
+            ret_val = dac_update(CHANNEL_RR,
+                    (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[0]) + 32767) & 0xFFFF), 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x2)
+        {
+            ret_val = dac_update(CHANNEL_RC,
+                    (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[0]) + 32767) & 0xFFFF), 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x4)
+        {
+            ret_val = dac_update(CHANNEL_LC,
+                    (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[1]) + 32767) & 0xFFFF), 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x8)
+        {
+            ret_val = dac_update(CHANNEL_LL,
+                    (uint16_t)(((MIC_TO_DAC_AMPLIFICATION_FACTOR * mic_data[1]) + 32767) & 0xFFFF), 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
 
         if (++counter == SAMPLING_FREQUENCY)
         {
@@ -358,27 +407,28 @@ main (
         {   // 1
             (char *) "play-single-tone",
             (char *) "Command to play a single tone.\n        "
-                "Usage: play-single-tone <frequency> <number of seconds>\n",
+                "Usage: play-single-tone <frequency> <number-of-seconds>\n",
             (console_command_func_t) &play_single_tone
         },
         {   // 2
             (char *) "print-mic-data",
             (char *) "Command to see mic data in binary and decimal.\n        "
-                "Usage: print-mic-data <number of samples>\n",
+                "Usage: print-mic-data <number-of-samples>\n",
             (console_command_func_t) &print_mic_data
         },
         {   // 3
             (char *) "play-mic-to-dac",
             (char *) "Output mic data through the DAC.\n        "
-                "Usage: play-mic-to-dac <number of seconds>\n",
+                "Usage: play-mic-to-dac <number-of-seconds> <channel-select>\n"
+                "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL",
             (console_command_func_t) &play_mic_to_dac
         },
-		{   // 4
-			(char *) "cal",
-			(char *) "Enter the calibration shell.\n        "
-				"Usage: cal <frequencyHz of Tone>\n",
-			(console_command_func_t) &console_commands_calibrate
-		}
+        {   // 4
+            (char *) "cal",
+            (char *) "Enter the calibration shell.\n        "
+                "Usage: cal <frequencyHz of Tone>\n",
+            (console_command_func_t) &console_commands_calibrate
+        }
     };
 
     /*
@@ -428,7 +478,8 @@ main (
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
     // Power on dac channel
-    ret_val = dac_power_up(CHANNELA_POWER | CHANNELB_POWER, 1);
+    ret_val = dac_power_up((CHANNEL_LL_POWER | CHANNEL_LC_POWER
+            | CHANNEL_RC_POWER | CHANNEL_RR_POWER), 1);
     ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
 
 #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
