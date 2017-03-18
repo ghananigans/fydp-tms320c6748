@@ -121,7 +121,7 @@ dac_command_send (
 
     if (payload->update.zero)
     {
-        ERROR_PRINT("Command format specifies that the MSB bit must be 0!");
+        ERROR_PRINT("Command format specifies that the MSB bit must be 0!\n");
         return DAC_INTERNAL_FAILURE_ZERO_BIT_NOT_ZERO;
     }
 
