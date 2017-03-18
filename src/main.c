@@ -115,7 +115,7 @@ play_single_tone (
     max_seconds = atoi(params[1]);
     counter = 0;
     seconds = 0;
-    channel_select = (atoi(params[1]) & 0xF);
+    channel_select = (atoi(params[2]) & 0xF);
 
     NORMAL_PRINT("    Playing single tone of %d Hz with a sampling frequency of %d Hz "
             "for %d seconds. There are %d samples per period. DAC channel select is 0x%x.\n",
@@ -407,7 +407,8 @@ main (
         {   // 1
             (char *) "play-single-tone",
             (char *) "Command to play a single tone.\n        "
-                "Usage: play-single-tone <frequency> <number-of-seconds>\n",
+                "Usage: play-single-tone <frequency> <number-of-seconds> <channel-select>\n        "
+                "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL\n",
             (console_command_func_t) &play_single_tone
         },
         {   // 2
@@ -419,8 +420,8 @@ main (
         {   // 3
             (char *) "play-mic-to-dac",
             (char *) "Output mic data through the DAC.\n        "
-                "Usage: play-mic-to-dac <number-of-seconds> <channel-select>\n"
-                "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL",
+                "Usage: play-mic-to-dac <number-of-seconds> <channel-select>\n        "
+                "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL\n",
             (console_command_func_t) &play_mic_to_dac
         },
         {   // 4
