@@ -388,6 +388,34 @@ console_commands_calibrate (
     return CONSOLE_COMMANDS_OK;
 }
 
+static
+int
+print_commblocker_ascii_art (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    NORMAL_PRINT("###########################################################################\n");
+    NORMAL_PRINT("#                                                                         #\n");
+    NORMAL_PRINT("#    #####    #####   ##     ##  ##     ##                                #\n");
+    NORMAL_PRINT("#   #     #  #     #  # #   # #  # #   # #                                #\n");
+    NORMAL_PRINT("#   #        #     #  #  # #  #  #  # #  #                                #\n");
+    NORMAL_PRINT("#   #        #     #  #   #   #  #   #   #                                #\n");
+    NORMAL_PRINT("#   #     #  #     #  #       #  #       #                                #\n");
+    NORMAL_PRINT("#    #####    #####   #       #  #       #                                #\n");
+    NORMAL_PRINT("#                                                                         #\n");
+    NORMAL_PRINT("#         ######   #         #####    #####   #    ##  ######  #####      #\n");
+    NORMAL_PRINT("#         #     #  #        #     #  #     #  #  ##    #       #    #     #\n");
+    NORMAL_PRINT("#         ######   #        #     #  #        ###      #       #    #     #\n");
+    NORMAL_PRINT("#         #     #  #        #     #  #        ###      ######  #####      #\n");
+    NORMAL_PRINT("#         #     #  #        #     #  #     #  #  ##    #       #    #     #\n");
+    NORMAL_PRINT("#         ######   #######   #####    #####   #    ##  ######  #     #    #\n");
+    NORMAL_PRINT("#                                                                         #\n");
+    NORMAL_PRINT("###########################################################################\n");
+
+    return 0;
+}
+
 #define NUM_COMMANDS (5)
 #define NUM_CAL_COMMANDS (3)
 
@@ -429,6 +457,12 @@ main (
             (char *) "Enter the calibration shell.\n        "
                 "Usage: cal <frequencyHz of Tone>\n",
             (console_command_func_t) &console_commands_calibrate
+        },
+        {
+            (char *) "commblocker",
+            (char *) "Print CommBlocker Ascii Art.\n        "
+                "Usage: commblocker\n",
+            (console_command_func_t) &print_commblocker_ascii_art
         }
     };
 
@@ -496,6 +530,8 @@ main (
     /*
      * Do whatever commands tell us to do.
      */
+    print_commblocker_ascii_art(0, 0);
+
     ret_val = console_commands_run(commands, NUM_COMMANDS);
     ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands run failed! (%d)\n", ret_val);
 
