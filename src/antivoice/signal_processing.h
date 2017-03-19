@@ -66,7 +66,7 @@ void generate_fft_center_frequencies()
 	}
 }
 
-void get_fft_bin_by_freq_pos(float f)
+unsigned int get_fft_bin_by_freq_pos(float f)
 {
 	unsigned int i;
 	float fdelta = ((float) FS / (float) FFT_SIZE)/2 + 1;
@@ -80,9 +80,10 @@ void get_fft_bin_by_freq_pos(float f)
 		}
 	}
 	NORMAL_PRINT("Could not find freq position.\n");
+	return 0;
 }
 
-void get_fft_bin_by_freq_neg(float f)
+unsigned int get_fft_bin_by_freq_neg(float f)
 {
 	unsigned int i;
 	float fdelta = ((float) FS / (float) FFT_SIZE)/2 + 1;
@@ -96,6 +97,7 @@ void get_fft_bin_by_freq_neg(float f)
 		}
 	}
 	NORMAL_PRINT("Could not find freq position.\n");
+	return 0;
 }
 
 
@@ -139,15 +141,28 @@ void generate_phase_adj()
 	}
 }
 
-
+#define NUM_TONES (2)
 
 void generate_phase_adj_hardcode()
 {
 	unsigned int i;
-	float hardcode[FFT_SIZE];
-	memset(hardcode, 0, sizeof(hardcode));
+	float f;
+	/*	even entries are freq, odd entries are phase value in radians float.
+	 * 	These are added to hardcode array below
+	 */
+	float hardcode[NUM_TONES * 2] = {
+			300.0f, 0.0f,
+			500.0f, 0.0f
+	};
 
-	/* TODO: need to add the hardcode frequencies here */
+	memset(phase_adj, 0, sizeof(phase_adj));
+
+	/* Place hardcodings into phase_adj array appropriately. */
+	for(i = 0; i < NUM_TONES; i++)
+	{
+		f = hardcode[i*2];
+		phase_adj[get_fft_bin_by_freq_pos(f)] = hardcode[i*2 + 1];
+	}
 
 }
 
