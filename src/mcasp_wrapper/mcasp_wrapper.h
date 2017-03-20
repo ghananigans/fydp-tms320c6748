@@ -32,9 +32,4 @@ mcasp_latest_rx_data (
     uint32_t * ptr
     );
 
-void 
-mcasp_loopback_test (
-    void
-    );
-
 #endif /* MCASP_WRAPPER_H_ */
