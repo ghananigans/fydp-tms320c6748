@@ -38,6 +38,8 @@
 								<option id="com.ti.ccstudio.buildDefinitions.C6000_8.1.compilerID.DEBUGGING_MODEL.692803388" name="Debugging model" superClass="com.ti.ccstudio.buildDefinitions.C6000_8.1.compilerID.DEBUGGING_MODEL" value="com.ti.ccstudio.buildDefinitions.C6000_8.1.compilerID.DEBUGGING_MODEL.SYMDEBUG__DWARF" valueType="enumerated"/>
 								<option id="com.ti.ccstudio.buildDefinitions.C6000_8.1.compilerID.INCLUDE_PATH.1192316938" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.C6000_8.1.compilerID.INCLUDE_PATH" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:/Program Files (x86)/Texas Instruments/dsplib_c674x_3_1_0_0/packages&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:/Program Files (x86)/Texas Instruments/dsplib_c674x_3_1_0_0/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/libs/usblib/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/libs/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/libs/include/c674x}&quot;"/>
@@ -64,6 +66,7 @@
 								<option id="com.ti.ccstudio.buildDefinitions.C6000_8.1.linkerID.DISPLAY_ERROR_NUMBER.2101362540" name="Emit diagnostic identifier numbers (--display_error_number)" superClass="com.ti.ccstudio.buildDefinitions.C6000_8.1.linkerID.DISPLAY_ERROR_NUMBER" value="true" valueType="boolean"/>
 								<option id="com.ti.ccstudio.buildDefinitions.C6000_8.1.linkerID.LIBRARY.1799420668" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.C6000_8.1.linkerID.LIBRARY" valueType="libs">
 									<listOptionValue builtIn="false" value="&quot;libc.a&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\Program Files (x86)\Texas Instruments\dsplib_c674x_3_1_0_0\lib\dsplib.ae674&quot;"/>
 								</option>
 								<option id="com.ti.ccstudio.buildDefinitions.C6000_8.1.linkerID.SEARCH_PATH.1331042119" name="Add &lt;dir&gt; to library search path (--search_path, -i)" superClass="com.ti.ccstudio.buildDefinitions.C6000_8.1.linkerID.SEARCH_PATH" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/lib&quot;"/>
