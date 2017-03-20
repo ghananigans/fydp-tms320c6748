@@ -115,7 +115,7 @@ void generate_phase_adj()
 {
 	unsigned int i;
 	float period, periods_elapsed, periods_floor_diff, shift_correction_factor, out_phase_correction;
-	const float PI = (float) 3.14159265;
+	const float PIf = (float) 3.14159265;
 
 	for(i = 0; i < FFT_SIZE; i++)
 	{
@@ -130,7 +130,7 @@ void generate_phase_adj()
                 %Equivalent to 1 - mod(0.5 - periods_floor_diff,1)
 			*/
             shift_correction_factor = fmodf(0.5f + periods_floor_diff, 1); /*keep positive number between 0 and 1 */
-            out_phase_correction = shift_correction_factor*2*PI;
+            out_phase_correction = shift_correction_factor*2*PIf;
             phase_adj[i] = out_phase_correction;
 		}
 		/*else

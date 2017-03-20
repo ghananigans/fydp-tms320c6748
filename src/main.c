@@ -21,7 +21,6 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "antivoice/antivoice.h"
 #include <string.h>
 
 
@@ -52,6 +51,9 @@
 //
 #define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
 
+
+
+
 static bool volatile timer_flag = 0;
 
 static
@@ -62,6 +64,9 @@ timer_function (
 {
 	timer_flag = 1;
 }
+
+//I know this is weird, but this to get the timer_flag
+#include "antivoice/antivoice.h"
 
 static
 int
@@ -340,11 +345,20 @@ static int run_antivoice(char ** params,
 	    		unsigned int num_params
 )
 {
-	int ret_val;
-
 	unsigned int counter;
 	unsigned int max_seconds;
 	unsigned int seconds;
+
+	max_seconds = atoi(params[1]);
+	seconds = 0;
+
+	fft_wrap_init();
+	signal_processing_init();
+
+	timer_flag = 0;
+	timer_start();
+
+
 	/*Calibration switch must be enabled at power-on to calibrate
 	switch does not have effect during normal mode of operation (likely accidental if switched)*/
 	if(is_calibration_enabled())
@@ -353,10 +367,10 @@ static int run_antivoice(char ** params,
 		 * May want to move to a separate command function, but we'll always to ensure the data structures are initialized before running antivoice!*/
 		run_calibration();
 		/*TODO: perhaps have a pause here? */
+
+		run_feedback_calibration();
 	}
 
-	fft_wrap_init();
-	signal_processing_init();
 
 	iteration_count = 0;
 

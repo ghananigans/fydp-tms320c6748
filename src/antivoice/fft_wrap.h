@@ -58,8 +58,9 @@ void tw_gen (float *w, int n)
 {
     int i, j, k;
     double x_t, y_t, theta1, theta2, theta3;
+#ifndef PI
     const double PI = 3.141592654;
-
+#endif
     for (j = 1, k = 0; j <= n >> 2; j = j << 2)
     {
         for (i = 0; i < n >> 2; i += j)

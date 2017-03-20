@@ -36,7 +36,15 @@ void send_speaker_output(audio_data_t audio_data[AUDIO_CHANNEL_COUNT])
 		out_samples[ch] = convert_float_to_speakerout(audio_data[ch].y[SPEAKEROUT_CHOSEN_SAMPLE * 2]);
 
 		/* NOTE: Vref/2 DC offset for int16_t to uint16_t has already been considered when mic data was parsed and no need to add 32676 here*/
-		ret_val = dac_update(ch, out_samples[ch], 1);
+		if(ch == LEFT)
+		{
+			ret_val = dac_update(CHANNEL_LC, out_samples[ch], 1);
+		}
+		else
+		{
+			ret_val = dac_update(CHANNEL_RC, out_samples[ch], 1);
+		}
+		
 		ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
 	}
 

@@ -111,12 +111,9 @@ for f = 1 : MAX_FREQ_INDEX
     for i = 2 : MAX_CALIB_SAMPLES
         if abs_sum(i) > (20 * 0.2 + abs_sum(i - 1))
             % we found that jump
-            % check next adjacent sample as well for comparison
-            if abs_sum(i) > abs_sum(i+1)
-                calibrated_samples_delay(f) = i;
-            else
-                calibrated_samples_delay(f) = i+1;
-            end
+            % check next adjacent sample as well
+            if abs
+            calibrated_samples_delay(f) = i;
             break;
         end
         %note: if calibrated_samples_delay is zero - that is not practical

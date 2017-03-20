@@ -16,6 +16,11 @@
 #define FS (8000) /* In hertz */
 #define FFT_FREQ_MAX (FS / 2) /* In hertz */
 
+
+#define MIN_PRACTICAL_FREQ 150.0f
+#define MAX_PRACTICAL_FREQ 2000.0f
+#define FEEDBACK_CALIB_SAMPLES (1000)
+
 /* Global data structures */
 float freq[FFT_SIZE]; /*Gets populated with center frequency of each fft bin */
 

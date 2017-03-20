@@ -16,6 +16,7 @@
 #include "fft_wrap.h"
 #include "signal_processing.h"
 #include "matlab_helper.h"
+#include "feedback_calibration.h"
 
 #define MATLAB_DEBUG_ENABLED 1
 
