@@ -51,6 +51,9 @@
 //
 #define TIMER_MICROSECONDS (1000000 / SAMPLING_FREQUENCY)
 
+
+
+
 static bool volatile timer_flag = 0;
 
 static
@@ -59,8 +62,11 @@ timer_function (
     void
     )
 {
-    timer_flag = 1;
+	timer_flag = 1;
 }
+
+//I know this is weird, but this to get the timer_flag
+#include "antivoice/antivoice.h"
 
 static
 int
@@ -335,6 +341,72 @@ play_mic_to_dac (
     return 0;
 }
 
+static int run_antivoice(char ** params,
+	    		unsigned int num_params
+)
+{
+	unsigned int counter;
+	unsigned int max_seconds;
+	unsigned int seconds;
+
+	max_seconds = atoi(params[1]);
+	seconds = 0;
+
+	fft_wrap_init();
+	signal_processing_init();
+
+	timer_flag = 0;
+	timer_start();
+
+
+	/*Calibration switch must be enabled at power-on to calibrate
+	switch does not have effect during normal mode of operation (likely accidental if switched)*/
+	if(is_calibration_enabled())
+	{
+		/*TODO: this currently just sets some default values and no real calibration.
+		 * May want to move to a separate command function, but we'll always to ensure the data structures are initialized before running antivoice!*/
+		run_calibration();
+		/*TODO: perhaps have a pause here? */
+
+		run_feedback_calibration();
+	}
+
+
+	iteration_count = 0;
+
+
+	while(seconds < max_seconds)
+	{
+		ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+		while (timer_flag == 0);
+		timer_flag = 0;
+
+		/*wait for algorithm to be enabled (controlled by board switch)
+		user controls whether regular headphones listening mode, or antivoice mode */
+		if(is_algorithm_enabled())
+		{
+			/*TODO: synchronize so that this runs exactly every 1/8000th of a second */
+			run_main_algorithm();
+		}
+		else
+		{
+			/*sleep to save power if possible / easy? */
+		}
+
+		/* Increment loop conditions */
+		if (++counter == SAMPLING_FREQUENCY) { ++seconds; counter = 0; }
+		iteration_count++;
+	}
+	timer_stop();
+
+	NORMAL_PRINT("Completed %u simulation iterations (samples).\n", iteration_count);
+
+
+	return 0;
+}
+
+#define NUM_COMMANDS (7)
+
 int
 console_commands_calibrate (
     char ** params,
@@ -418,13 +490,10 @@ print_commblocker_ascii_art (
     return 0;
 }
 
-#define NUM_COMMANDS (6)
 #define NUM_CAL_COMMANDS (3)
 
 int
-main (
-    void
-    )
+main (    void     )
 {
     int ret_val;
     console_command_t const commands[NUM_COMMANDS] = {
@@ -454,13 +523,19 @@ main (
                 "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL\n",
             (console_command_func_t) &play_mic_to_dac
         },
-        {   // 4
+		{   // 4
+			(char *) "antivoice",
+			(char *) "Run antivoice algorithm for desired number of seconds.\n        "
+				"Usage: antivoice <number of seconds>\n",
+			(console_command_func_t) &run_antivoice
+		},
+        {   // 5
             (char *) "cal",
             (char *) "Enter the calibration shell.\n        "
                 "Usage: cal <frequencyHz of Tone>\n",
             (console_command_func_t) &console_commands_calibrate
         },
-        {
+        {   //6
             (char *) "commblocker",
             (char *) "Print CommBlocker Ascii Art.\n        "
                 "Usage: commblocker\n",
@@ -536,6 +611,8 @@ main (
 
     ret_val = console_commands_run(commands, NUM_COMMANDS);
     ASSERT(ret_val == CONSOLE_COMMANDS_OK, "Console commands run failed! (%d)\n", ret_val);
+
+
 
     /*
      * Loop forever.
