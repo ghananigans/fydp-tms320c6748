@@ -487,7 +487,8 @@ play_single_tone_anti (
 
         x += 1.0f / SAMPLING_FREQUENCY;
 
-        NORMAL_PRINT("Sample %d = %d\n", i, val[i]);
+        NORMAL_PRINT("Sample Inphase %d = %d\n", i, val[i]);
+        NORMAL_PRINT("Sample Outphase %d = %d\n", i, val2[i]);
     }
 
     i = 0;
