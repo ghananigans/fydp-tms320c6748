@@ -450,8 +450,6 @@ play_single_tone_anti (
     // Max number of seconds is done by first param
     //
     max_seconds = atoi(params[1]);
-    counter = 0;
-    seconds = 0;
     channel_select = (atoi(params[2]) & 0xF);
 
     NORMAL_PRINT("    Playing single tone anti of %d Hz with a sampling frequency of %d Hz "
@@ -493,8 +491,56 @@ play_single_tone_anti (
     }
 
     i = 0;
-
+    seconds = 0;
     timer_flag = 0;
+    counter = 0;
+    timer_start();
+    while (seconds < max_seconds)
+    {
+        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+        while (timer_flag == 0);
+        timer_flag = 0;
+
+        if (channel_select & 0x1)
+        {
+            ret_val = dac_update(CHANNEL_RR, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x2)
+        {
+            ret_val = dac_update(CHANNEL_RC, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x4)
+        {
+            ret_val = dac_update(CHANNEL_LC, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x8)
+        {
+            ret_val = dac_update(CHANNEL_LL, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (++i == max_samples)
+        {
+            i = 0;
+        }
+
+        if (++counter == SAMPLING_FREQUENCY)
+        {
+            ++seconds;
+            counter = 0;
+        }
+    }
+
+    i = 0;
+    seconds = 0;
+    timer_flag = 0;
+    counter = 0;
     timer_start();
     while (seconds < max_seconds)
     {
