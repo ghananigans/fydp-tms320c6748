@@ -418,7 +418,131 @@ print_commblocker_ascii_art (
     return 0;
 }
 
-#define NUM_COMMANDS (6)
+static
+int
+play_single_tone_anti (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    int ret_val;
+    int i;
+    unsigned int counter;
+    unsigned int max_seconds;
+    unsigned int frequency;
+    unsigned int seconds;
+    float x;
+    float y;
+    uint16_t val[80];
+    uint16_t val2[80];
+    unsigned int max_samples;
+    uint8_t channel_select;
+
+    NORMAL_PRINT("Play single tone anti command\n");
+
+    //
+    // Frequency of single tone (support only 100hz - 1000hz)
+    //
+    frequency = atoi(params[0]);
+    max_samples = SAMPLING_FREQUENCY / frequency;
+
+    //
+    // Max number of seconds is done by first param
+    //
+    max_seconds = atoi(params[1]);
+    counter = 0;
+    seconds = 0;
+    channel_select = (atoi(params[2]) & 0xF);
+
+    NORMAL_PRINT("    Playing single tone anti of %d Hz with a sampling frequency of %d Hz "
+            "for %d seconds. There are %d samples per period. DAC channel select is 0x%x.\n",
+            frequency, SAMPLING_FREQUENCY, max_seconds, max_samples, channel_select);
+
+    if (frequency < 100 || frequency > 1000)
+    {
+        ERROR_PRINT("Invalid frequency... "
+                    "(frequency bust be between 100Hz and 1000Hz, inclusive!!\n");
+        return 1;
+    }
+
+    if (max_samples == 0)
+    {
+        ERROR_PRINT("No samples to play the single tone... "
+                "(frequency might be too high compared with sampling frequency!!\n");
+        //
+        // Not enough samples
+        //
+        return 2;
+    }
+
+    /*
+     * Pre calculate samples for simple sinusoid output to dac.
+     */
+    x = 0.0f;
+    for (i = 0; i < max_samples; ++i)
+    {
+        y = (cos(2 * frequency * PI * x) + 1.0f) * 32767;
+        val[i] = (uint16_t) y;
+
+        y = ((-1 * cos(2 * frequency * PI * x)) + 1.0f) * 32767;
+        val2[i] = (uint16_t) y;
+
+        x += 1.0f / SAMPLING_FREQUENCY;
+
+        NORMAL_PRINT("Sample %d = %d\n", i, val[i]);
+    }
+
+    i = 0;
+
+    timer_flag = 0;
+    timer_start();
+    while (seconds < max_seconds)
+    {
+        ASSERT(timer_flag == 0, "TIMER IS TOO FAST!\n");
+        while (timer_flag == 0);
+        timer_flag = 0;
+
+        if (channel_select & 0x1)
+        {
+            ret_val = dac_update(CHANNEL_RR, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x2)
+        {
+            ret_val = dac_update(CHANNEL_RC, val[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x4)
+        {
+            ret_val = dac_update(CHANNEL_LC, val2[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (channel_select & 0x8)
+        {
+            ret_val = dac_update(CHANNEL_LL, val2[i], 0);
+            ASSERT(ret_val == DAC_OK, "DAC update failed! (%d)\n", ret_val);
+        }
+
+        if (++i == max_samples)
+        {
+            i = 0;
+        }
+
+        if (++counter == SAMPLING_FREQUENCY)
+        {
+            ++seconds;
+            counter = 0;
+        }
+    }
+    timer_stop();
+
+    return 0;
+}
+
+#define NUM_COMMANDS (7)
 #define NUM_CAL_COMMANDS (3)
 
 int
@@ -460,11 +584,18 @@ main (
                 "Usage: cal <frequencyHz of Tone>\n",
             (console_command_func_t) &console_commands_calibrate
         },
-        {
+        {   // 5
             (char *) "commblocker",
             (char *) "Print CommBlocker Ascii Art.\n        "
                 "Usage: commblocker\n",
             (console_command_func_t) &print_commblocker_ascii_art
+        },
+        {   // 6
+            (char *) "play-single-tone-anti",
+            (char *) "Command to play a single tone with anti signal.\n        "
+                "Usage: play-single-tone-anti <frequency> <number-of-seconds> <channel-select>\n        "
+                "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL\n",
+            (console_command_func_t) &play_single_tone_anti
         }
     };
 
