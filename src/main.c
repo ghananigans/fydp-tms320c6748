@@ -589,7 +589,32 @@ play_single_tone_anti (
     return 0;
 }
 
-#define NUM_COMMANDS (7)
+static
+int
+reset_dac (
+    char ** params,
+    unsigned int num_params
+    )
+{
+    int ret_val;
+
+    ret_val = dac_reset(1);
+    ASSERT(ret_val == DAC_OK, "DAC reset failed! (%d)\n", ret_val);
+
+    // Power on dac channel
+    ret_val = dac_power_up((CHANNEL_LL_POWER | CHANNEL_LC_POWER
+            | CHANNEL_RC_POWER | CHANNEL_RR_POWER), 1);
+    ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
+
+#ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
+    ret_val = dac_internal_reference_power_down(1);
+    ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
+#endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
+
+    return 0;
+}
+
+#define NUM_COMMANDS (8)
 #define NUM_CAL_COMMANDS (3)
 
 int
@@ -643,6 +668,12 @@ main (
                 "Usage: play-single-tone-anti <frequency> <number-of-seconds> <channel-select>\n        "
                 "    <channel-select> : bit0 = RR; bit1 = RC; bit2 = LC; bit3 = LL\n",
             (console_command_func_t) &play_single_tone_anti
+        },
+        {   // 7
+            (char *) "reset-dac",
+            (char *) "Reset Dac.\n        "
+                "Usage: reset-dac\n        ",
+            (console_command_func_t) &reset_dac
         }
     };
 
@@ -692,15 +723,7 @@ main (
     ret_val = timer_init(&timer_function, TIMER_MICROSECONDS);
     ASSERT(ret_val == TIMER_OK, "Timer Init failed! (%d)\n", ret_val);
 
-    // Power on dac channel
-    ret_val = dac_power_up((CHANNEL_LL_POWER | CHANNEL_LC_POWER
-            | CHANNEL_RC_POWER | CHANNEL_RR_POWER), 1);
-    ASSERT(ret_val == DAC_OK, "DAC power on failed! (%d)\n", ret_val);
-
-#ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
-    ret_val = dac_internal_reference_power_down(1);
-    ASSERT(ret_val == DAC_OK, "DAC internal reference power down failed! (%d)\n", ret_val);
-#endif // #ifdef DAC_DO_NOT_USE_INTERNAL_REFERENCE
+    reset_dac(0, 0);
 
     //
     // Init phase array data structure for calibrations
